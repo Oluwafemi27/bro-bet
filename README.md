@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Bet Hub Pro
 
-TODO: Document your project here
+Your betting platform application.

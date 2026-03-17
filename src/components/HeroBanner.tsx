@@ -7,17 +7,20 @@ const slides = [
   {
     title: "Welcome Bonus",
     subtitle: "Get ₦500 FREE on signup!",
-    gradient: "from-primary/80 to-primary/40",
+    image: "https://images.pexels.com/photos/10741372/pexels-photo-10741372.jpeg",
+    alt: "Interior of a betting cafe with people watching sports",
   },
   {
     title: "Live Betting",
     subtitle: "Bet on matches happening right now",
-    gradient: "from-destructive/80 to-destructive/40",
+    image: "https://images.pexels.com/photos/31519329/pexels-photo-31519329.jpeg",
+    alt: "Action shot of a soccer player in motion on a football field",
   },
   {
     title: "Aviator Crash Game",
     subtitle: "Fly high, cash out before it crashes!",
-    gradient: "from-naija-gold/80 to-naija-gold/40",
+    image: "https://images.pexels.com/photos/4677404/pexels-photo-4677404.jpeg",
+    alt: "Casino chips and dice on a felt table with online gaming",
   },
 ];
 
@@ -38,10 +41,21 @@ const HeroBanner = () => {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.3 }}
-          className={`bg-gradient-to-r ${slides[current].gradient} rounded-xl p-6 md:p-10`}
+          className="relative overflow-hidden rounded-xl"
+          style={{
+            backgroundImage: `url(${slides[current].image})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
         >
-          <h2 className="font-display text-2xl font-bold text-foreground md:text-4xl">{slides[current].title}</h2>
-          <p className="mt-2 text-sm text-foreground/80 md:text-base">{slides[current].subtitle}</p>
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-black/40 rounded-xl" />
+
+          {/* Content */}
+          <div className="relative z-10 p-6 md:p-10">
+            <h2 className="font-display text-2xl font-bold text-white md:text-4xl">{slides[current].title}</h2>
+            <p className="mt-2 text-sm text-white/90 md:text-base">{slides[current].subtitle}</p>
+          </div>
         </motion.div>
       </AnimatePresence>
 
