@@ -5,9 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Users, Receipt, TrendingUp, Megaphone, BarChart3, DollarSign, Activity, Trophy } from "lucide-react";
+import { Users, Receipt, TrendingUp, Megaphone, BarChart3, DollarSign, Activity, Trophy, Plus, Trash2, Edit2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const Admin = () => {
@@ -20,7 +22,11 @@ const Admin = () => {
   const [bets, setBets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [promotions, setPromotions] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bets' | 'transactions' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bets' | 'transactions' | 'analytics' | 'promotions'>('overview');
+  const [showPromoForm, setShowPromoForm] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<any>(null);
+  const [promoFormData, setPromoFormData] = useState({ title: '', description: '', image_url: '' });
+  const [savingPromo, setSavingPromo] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -60,6 +66,46 @@ const Admin = () => {
     toast({ title: `Promotion ${!isActive ? "activated" : "deactivated"}` });
   };
 
+  const savePromotion = async () => {
+    if (!promoFormData.title.trim()) {
+      toast({ title: "Please enter a promotion title", variant: "destructive" });
+      return;
+    }
+    setSavingPromo(true);
+    try {
+      if (editingPromo) {
+        await supabase.from("promotions").update(promoFormData).eq("id", editingPromo.id);
+        toast({ title: "Promotion updated successfully" });
+      } else {
+        await supabase.from("promotions").insert([promoFormData]);
+        toast({ title: "Promotion created successfully" });
+      }
+      setShowPromoForm(false);
+      setEditingPromo(null);
+      setPromoFormData({ title: '', description: '', image_url: '' });
+      loadData();
+    } finally {
+      setSavingPromo(false);
+    }
+  };
+
+  const deletePromotion = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this promotion?")) return;
+    try {
+      await supabase.from("promotions").delete().eq("id", id);
+      toast({ title: "Promotion deleted successfully" });
+      loadData();
+    } catch (error) {
+      toast({ title: "Failed to delete promotion", variant: "destructive" });
+    }
+  };
+
+  const startEditPromo = (promo: any) => {
+    setEditingPromo(promo);
+    setPromoFormData({ title: promo.title, description: promo.description, image_url: promo.image_url });
+    setShowPromoForm(true);
+  };
+
   const calculateAnalytics = () => {
     const totalStaked = bets.reduce((sum, b) => sum + (b.stake || 0), 0);
     const totalPotentialWin = bets.reduce((sum, b) => sum + (b.potential_win || 0), 0);
@@ -67,8 +113,9 @@ const Admin = () => {
     const lostBets = bets.filter(b => b.status === 'lost').length;
     const pendingBets = bets.filter(b => b.status === 'pending').length;
 
-    const totalRevenue = transactions.filter(t => t.type === 'bet_loss').reduce((sum, t) => sum + (t.amount || 0), 0);
-    const totalPayouts = transactions.filter(t => t.type === 'bet_win').reduce((sum, t) => sum + (t.amount || 0), 0);
+    // Revenue from user losses and payouts from wins
+    const totalRevenue = wonBets > 0 ? bets.filter(b => b.status === 'lost').reduce((sum, b) => sum + (b.stake || 0), 0) : 0;
+    const totalPayouts = transactions.filter(t => t.type === 'win').reduce((sum, t) => sum + (t.amount || 0), 0);
     const successRate = bets.length > 0 ? ((wonBets / bets.length) * 100).toFixed(1) : 0;
 
     return {
@@ -148,6 +195,7 @@ const Admin = () => {
           { id: 'users', label: 'Users', icon: '👥' },
           { id: 'bets', label: 'Bets', icon: '🎯' },
           { id: 'transactions', label: 'Transactions', icon: '💰' },
+          { id: 'promotions', label: 'Promotions', icon: '🎁' },
           { id: 'analytics', label: 'Analytics', icon: '📈' },
         ].map((tab) => (
           <button
@@ -348,6 +396,112 @@ const Admin = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Promotions Tab */}
+      {activeTab === 'promotions' && (
+        <div className="space-y-6">
+          {showPromoForm ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{editingPromo ? 'Edit Promotion' : 'Create New Promotion'}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Title *</label>
+                  <Input
+                    placeholder="Promotion title"
+                    value={promoFormData.title}
+                    onChange={(e) => setPromoFormData({ ...promoFormData, title: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea
+                    placeholder="Promotion description"
+                    value={promoFormData.description || ''}
+                    onChange={(e) => setPromoFormData({ ...promoFormData, description: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Image URL</label>
+                  <Input
+                    placeholder="https://example.com/image.jpg"
+                    value={promoFormData.image_url || ''}
+                    onChange={(e) => setPromoFormData({ ...promoFormData, image_url: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={savePromotion} disabled={savingPromo}>
+                    {savingPromo ? 'Saving...' : editingPromo ? 'Update Promotion' : 'Create Promotion'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowPromoForm(false);
+                      setEditingPromo(null);
+                      setPromoFormData({ title: '', description: '', image_url: '' });
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <Button onClick={() => setShowPromoForm(true)} className="gap-2">
+                <Plus className="h-4 w-4" /> Create New Promotion
+              </Button>
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Promotions ({promotions.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {promotions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No promotions yet</p>
+                  ) : (
+                    promotions.map((promo) => (
+                      <div key={promo.id} className="flex items-center justify-between rounded-lg border border-border p-4">
+                        <div className="flex-1">
+                          <p className="font-medium">{promo.title}</p>
+                          <p className="text-sm text-muted-foreground">{promo.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Status: <span className={promo.is_active ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                              {promo.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={promo.is_active} onCheckedChange={() => togglePromo(promo.id, promo.is_active)} />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => startEditPromo(promo)}
+                            className="gap-2"
+                          >
+                            <Edit2 className="h-4 w-4" /> Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deletePromotion(promo.id)}
+                            className="gap-2"
+                          >
+                            <Trash2 className="h-4 w-4" /> Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
       )}
 
       {/* Analytics Tab */}

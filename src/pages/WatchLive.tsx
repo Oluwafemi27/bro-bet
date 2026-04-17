@@ -146,6 +146,32 @@ const WatchLive = () => {
     }
   };
 
+  // Touch swipe handling
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.changedTouches[0].screenX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    touchEndX.current = e.changedTouches[0].screenX;
+    handleSwipe();
+  };
+
+  const handleSwipe = () => {
+    const swipeThreshold = 50; // minimum swipe distance
+    const difference = touchStartX.current - touchEndX.current;
+
+    if (Math.abs(difference) > swipeThreshold) {
+      if (difference > 0) {
+        scroll('right'); // swiped left, scroll right
+      } else {
+        scroll('left'); // swiped right, scroll left
+      }
+    }
+  };
+
   const formatTime = (ts: number) => {
     const d = new Date(ts);
     const today = new Date();
@@ -264,7 +290,9 @@ const WatchLive = () => {
           )}
           <div
             ref={sportsScrollRef}
-            className="flex gap-2 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-2 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
             {sports.map((s) => (
               <Button
