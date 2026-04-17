@@ -8,17 +8,20 @@ import { Zap } from "lucide-react";
 const Live = () => {
   const { data: odds, isLoading } = useOdds("soccer_epl", true);
 
-  const matches = (odds || []).map((event: any) => ({
-    id: event.id,
-    homeTeam: event.home_team,
-    awayTeam: event.away_team,
-    homeOdds: event.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((o: any) => o.name === event.home_team)?.price || 1.5,
-    drawOdds: event.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((o: any) => o.name === "Draw")?.price || 3.5,
-    awayOdds: event.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((o: any) => o.name === event.away_team)?.price || 2.5,
-    league: event.sport_title,
-    isLive: true,
-    time: "LIVE",
-  }));
+  const now = Date.now();
+  const matches = (odds || [])
+    .filter((event: any) => new Date(event.commence_time).getTime() > now - 4 * 60 * 60 * 1000)
+    .map((event: any) => ({
+      id: event.id,
+      homeTeam: event.home_team,
+      awayTeam: event.away_team,
+      homeOdds: event.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((o: any) => o.name === event.home_team)?.price || 1.5,
+      drawOdds: event.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((o: any) => o.name === "Draw")?.price || 3.5,
+      awayOdds: event.bookmakers?.[0]?.markets?.[0]?.outcomes?.find((o: any) => o.name === event.away_team)?.price || 2.5,
+      league: event.sport_title,
+      isLive: true,
+      time: "LIVE",
+    }));
 
   return (
     <Layout>
