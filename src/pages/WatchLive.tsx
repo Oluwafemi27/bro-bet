@@ -193,73 +193,82 @@ const WatchLive = () => {
 
     return (
       <Layout>
-        <div className="container space-y-3 sm:space-y-4 py-4">
-          <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="-ml-2 text-xs sm:text-sm">
-            <ArrowLeft className="mr-1 h-3 w-3 sm:h-4 sm:w-4" /> Back
-          </Button>
-
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            {isLive(selected.date) && (
-              <Badge className="bg-destructive text-destructive-foreground text-[10px] sm:text-xs w-fit">
-                <Radio className="mr-1 h-2 w-2 sm:h-3 sm:w-3" /> LIVE
-              </Badge>
-            )}
-            <h1 className="font-display text-lg sm:text-2xl font-bold line-clamp-2">{selected.title}</h1>
-          </div>
-          <p className="text-xs sm:text-sm text-muted-foreground">{formatTime(selected.date)}</p>
-
-          <div className="overflow-hidden rounded-lg sm:rounded-xl border border-border bg-card">
-            <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-              {loadingDetail ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : embedUrl ? (
-                <iframe
-                  key={embedUrl}
-                  src={embedUrl}
-                  title={selected.title}
-                  className="absolute inset-0 h-full w-full"
-                  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                  allowFullScreen
-                  referrerPolicy="no-referrer"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
-                  <Tv className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    No stream available yet. Streams typically appear 30–60 minutes before kickoff.
-                  </p>
-                </div>
-              )}
+        <div className="min-h-screen flex flex-col w-full">
+          {/* Back button and title */}
+          <div className="flex-shrink-0 px-4 py-2 space-y-2 border-b border-border">
+            <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="-ml-2 text-sm h-9">
+              <ArrowLeft className="mr-1 h-4 w-4" /> Back
+            </Button>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                {isLive(selected.date) && (
+                  <Badge className="bg-destructive text-destructive-foreground text-xs">
+                    <Radio className="mr-1 h-2 w-2" /> LIVE
+                  </Badge>
+                )}
+              </div>
+              <h1 className="font-display text-lg font-bold line-clamp-2">{selected.title}</h1>
+              <p className="text-xs text-muted-foreground mt-1">{formatTime(selected.date)}</p>
             </div>
           </div>
 
-          {sources.length > 1 && (
-            <div className="space-y-2">
-              <p className="text-xs sm:text-sm font-semibold">Choose stream source</p>
-              <div className="flex flex-wrap gap-2">
-                {sources.map((s, i) => (
-                  <Button
-                    key={i}
-                    size="sm"
-                    variant={i === activeSourceIdx ? "default" : "outline"}
-                    onClick={() => setActiveSourceIdx(i)}
-                    className="text-xs sm:text-sm"
-                  >
-                    {s.name || s.source || `Source ${i + 1}`}
-                    {s.language ? ` · ${s.language}` : ""}
-                    {s.quality ? ` · ${s.quality}` : ""}
-                  </Button>
-                ))}
+          {/* Video player - takes up remaining space */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="overflow-hidden rounded-none border-b border-border bg-card flex-1">
+              <div className="relative w-full h-full" style={{ paddingTop: "56.25%", paddingBottom: "0" }}>
+                {loadingDetail ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : embedUrl ? (
+                  <iframe
+                    key={embedUrl}
+                    src={embedUrl}
+                    title={selected.title}
+                    className="absolute inset-0 h-full w-full"
+                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    referrerPolicy="no-referrer"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center bg-muted">
+                    <Tv className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      No stream yet. Usually appears 30–60 min before kickoff.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          <p className="text-[10px] sm:text-xs text-muted-foreground">
-            Streams provided by sportsrc.org. If a stream doesn't load, try another source above.
-          </p>
+            {/* Controls section */}
+            <div className="flex-shrink-0 overflow-y-auto px-4 py-3 space-y-3">
+              {sources.length > 1 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Stream sources</p>
+                  <div className="flex flex-wrap gap-2">
+                    {sources.map((s, i) => (
+                      <Button
+                        key={i}
+                        size="sm"
+                        variant={i === activeSourceIdx ? "default" : "outline"}
+                        onClick={() => setActiveSourceIdx(i)}
+                        className="text-xs h-9"
+                      >
+                        {s.name || s.source || `Source ${i + 1}`}
+                        {s.language ? ` · ${s.language}` : ""}
+                        {s.quality ? ` · ${s.quality}` : ""}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Streams provided by sportsrc.org
+              </p>
+            </div>
+          </div>
         </div>
       </Layout>
     );
@@ -268,29 +277,32 @@ const WatchLive = () => {
   // ---- Sport picker + match list ----
   return (
     <Layout>
-      <div className="container space-y-4 py-4">
-        <div className="flex items-center gap-2">
-          <Tv className="h-6 w-6 text-primary" />
-          <h1 className="font-display text-2xl font-bold">Watch Live</h1>
+      <div className="min-h-screen flex flex-col w-full">
+        {/* Header section - fixed height */}
+        <div className="flex-shrink-0 px-4 py-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Tv className="h-5 w-5 text-primary" />
+            <h1 className="font-display text-xl font-bold">Watch Live</h1>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Pick a sport then select a match to stream
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Pick a sport, then choose a match to stream right inside the app.
-        </p>
 
-        {/* Sport tabs with slide navigation */}
-        <div className="relative -mx-4 px-4">
+        {/* Sport tabs - fixed height, full width scroll */}
+        <div className="flex-shrink-0 relative px-4 py-2 border-b border-border">
           {showLeftArrow && (
             <button
               onClick={() => scroll('left')}
               className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-r from-background to-transparent p-2 text-primary hover:text-primary/80"
-              aria-label="Scroll sports left"
+              aria-label="Scroll left"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
           )}
           <div
             ref={sportsScrollRef}
-            className="flex gap-2 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing"
+            className="flex gap-2 overflow-x-auto scroll-smooth pb-2 pl-6 pr-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
@@ -299,7 +311,7 @@ const WatchLive = () => {
                 key={s.id}
                 size="sm"
                 variant={s.id === category ? "default" : "outline"}
-                className="shrink-0"
+                className="shrink-0 text-sm h-9 whitespace-nowrap"
                 onClick={() => setCategory(s.id)}
               >
                 {s.name}
@@ -310,71 +322,73 @@ const WatchLive = () => {
             <button
               onClick={() => scroll('right')}
               className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-l from-background to-transparent p-2 text-primary hover:text-primary/80"
-              aria-label="Scroll sports right"
+              aria-label="Scroll right"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           )}
         </div>
 
-        {/* Matches */}
-        {loadingMatches ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        ) : matches.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center">
-            <Tv className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              No live or upcoming matches found for this sport right now.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2 sm:space-y-3">
-            {matches.map((m) => {
-              const live = isLive(m.date);
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => openMatch(m)}
-                  className="w-full rounded-lg sm:rounded-xl border border-border bg-card p-3 sm:p-4 text-left transition hover:border-primary/50 hover:bg-card/80 active:bg-card/60"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                      {m.teams?.home?.badge && (
-                        <img
-                          src={m.teams.home.badge}
-                          alt=""
-                          loading="lazy"
-                          className="h-8 w-8 sm:h-10 sm:w-10 shrink-0 rounded-full bg-muted object-contain"
-                        />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm sm:text-base font-semibold">{m.title}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{formatTime(m.date)}</p>
+        {/* Matches area - scrollable */}
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          {loadingMatches ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : matches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Tv className="mb-3 h-10 w-10 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground text-center">
+                No live or upcoming matches for this sport
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2 pb-4">
+              {matches.map((m) => {
+                const live = isLive(m.date);
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => openMatch(m)}
+                    className="w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/50 hover:bg-card/80 active:bg-card/60"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {m.teams?.home?.badge && (
+                          <img
+                            src={m.teams.home.badge}
+                            alt=""
+                            loading="lazy"
+                            className="h-8 w-8 shrink-0 rounded-full bg-muted object-contain"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{m.title}</p>
+                          <p className="text-xs text-muted-foreground">{formatTime(m.date)}</p>
+                        </div>
+                        {m.teams?.away?.badge && (
+                          <img
+                            src={m.teams.away.badge}
+                            alt=""
+                            loading="lazy"
+                            className="h-8 w-8 shrink-0 rounded-full bg-muted object-contain"
+                          />
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
                       {live && (
-                        <Badge className="bg-destructive text-destructive-foreground text-[10px] sm:text-xs">
-                          <Radio className="mr-1 h-2 w-2 sm:h-3 sm:w-3" /> LIVE
-                        </Badge>
-                      )}
-                      {m.teams?.away?.badge && (
-                        <img
-                          src={m.teams.away.badge}
-                          alt=""
-                          loading="lazy"
-                          className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-muted object-contain"
-                        />
+                        <div className="flex justify-end">
+                          <Badge className="bg-destructive text-destructive-foreground text-xs">
+                            <Radio className="mr-1 h-2 w-2" /> LIVE
+                          </Badge>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );

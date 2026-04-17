@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { isGameLiveOrUpcoming, GAMES_HOURLY_REFETCH_INTERVAL } from "@/utils/gameFilter";
 
 export interface BoxingEvent {
   id: string;
@@ -100,7 +101,12 @@ export function useBoxing(liveOnly = false) {
     queryKey: ["boxing", liveOnly],
     queryFn: fetchBoxing,
     staleTime: 1000 * 60 * 10,
-    refetchInterval: liveOnly ? 30000 : undefined,
-    select: (events) => (liveOnly ? events.filter((e) => e.isLive) : events),
+    refetchInterval: GAMES_HOURLY_REFETCH_INTERVAL,
+    select: (events) => {
+      // Filter to only live or upcoming games using timestamp
+      const filtered = events.filter((e) => isGameLiveOrUpcoming(e.timestamp));
+      // If liveOnly is requested, further filter to only live events
+      return liveOnly ? filtered.filter((e) => e.isLive) : filtered;
+    },
   });
 }

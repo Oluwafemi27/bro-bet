@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { isGameLiveOrUpcoming, GAMES_HOURLY_REFETCH_INTERVAL } from "@/utils/gameFilter";
 
 const ODDS_BASE = "https://api.the-odds-api.com/v4";
 const ODDS_API_KEY = "64783c52fb02db93d5a68321a01a3e80";
@@ -24,7 +25,8 @@ export function useOdds(sport: string, live = false) {
       fetchWithKey(
         `/sports/${sport}/odds?regions=eu&markets=h2h&oddsFormat=decimal${live ? "&eventIds=" : ""}`
       ),
-    refetchInterval: live ? 10000 : undefined,
+    refetchInterval: GAMES_HOURLY_REFETCH_INTERVAL,
     enabled: !!sport,
+    select: (events) => events.filter((event: any) => isGameLiveOrUpcoming(event.commence_time)),
   });
 }
