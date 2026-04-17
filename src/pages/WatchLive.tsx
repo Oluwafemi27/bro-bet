@@ -65,7 +65,7 @@ const WatchLive = () => {
       }).catch(() => ({ data: null } as { data: null }));
       // invoke doesn't pass query string easily; use direct fetch
       try {
-        const url = `https://jynsqirfkkvcahtrbykj.supabase.co/functions/v1/get-streams?action=sports`;
+        const url = `https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/get-streams?action=sports`;
         const r = await fetch(url);
         const j = await r.json();
         if (j?.success && Array.isArray(j.data)) setSports(j.data);
@@ -81,7 +81,7 @@ const WatchLive = () => {
     setLoadingMatches(true);
     (async () => {
       try {
-        const url = `https://jynsqirfkkvcahtrbykj.supabase.co/functions/v1/get-streams?action=matches&category=${encodeURIComponent(category)}`;
+        const url = `https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/get-streams?action=matches&category=${encodeURIComponent(category)}`;
         const r = await fetch(url);
         const j = await r.json();
         setMatches(j?.success && Array.isArray(j.data) ? j.data : []);
@@ -98,7 +98,7 @@ const WatchLive = () => {
     setActiveSourceIdx(0);
     setSelected({ ...m, sources: [] });
     try {
-      const url = `https://jynsqirfkkvcahtrbykj.supabase.co/functions/v1/get-streams?action=detail&category=${encodeURIComponent(category)}&id=${encodeURIComponent(m.id)}`;
+      const url = `https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/get-streams?action=detail&category=${encodeURIComponent(category)}&id=${encodeURIComponent(m.id)}`;
       const r = await fetch(url);
       const j = await r.json();
       if (j?.success && j.data) setSelected(j.data);
