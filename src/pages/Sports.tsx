@@ -13,7 +13,9 @@ const Sports = () => {
   const [search, setSearch] = useState("");
   const { data: odds, isLoading } = useOdds(activeSport);
 
+  const now = Date.now();
   const matches = (odds || [])
+    .filter((event: any) => new Date(event.commence_time).getTime() > now - 3 * 60 * 60 * 1000)
     .map((event: any) => ({
       id: event.id,
       homeTeam: event.home_team,
