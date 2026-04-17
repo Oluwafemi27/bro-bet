@@ -6,7 +6,7 @@ import { useOdds } from "@/hooks/useOddsApi";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import { Zap, Trophy, Gamepad2 } from "lucide-react";
+import { Zap, Trophy, Gamepad2, Activity, Swords, Tv } from "lucide-react";
 
 const leagues = [
   { id: "all", label: "All" },
@@ -17,7 +17,10 @@ const leagues = [
 ];
 
 const quickLinks = [
-  { to: "/live", icon: Zap, label: "Live Betting", color: "bg-destructive" },
+  { to: "/live", icon: Zap, label: "Live", color: "bg-destructive" },
+  { to: "/basketball", icon: Activity, label: "Basketball", color: "bg-primary" },
+  { to: "/boxing", icon: Swords, label: "Boxing", color: "bg-naija-gold" },
+  { to: "/watch", icon: Tv, label: "Watch", color: "bg-secondary text-foreground" },
   { to: "/aviator", icon: Trophy, label: "Aviator", color: "bg-naija-gold" },
   { to: "/casino", icon: Gamepad2, label: "Casino", color: "bg-primary" },
 ];
