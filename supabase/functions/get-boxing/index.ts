@@ -6,6 +6,18 @@ const corsHeaders = {
 };
 
 const BASE = "https://www.thesportsdb.com/api/v1/json/123";
+// Known fighting league IDs in TheSportsDB
+const LEAGUE_IDS = ["4445"]; // Boxing
+const SEASONS = ["2026", "2027"];
+
+function parseFighters(title: string): { home?: string; away?: string } {
+  if (!title) return {};
+  const parts = title.split(/\s+vs\.?\s+/i);
+  if (parts.length === 2) {
+    return { home: parts[0].trim(), away: parts[1].trim() };
+  }
+  return {};
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,47 +28,62 @@ serve(async (req) => {
     const events: any[] = [];
     const seen = new Set<string>();
     const now = Date.now();
+    const liveWindow = 4 * 60 * 60 * 1000; // 4h
+    const upcomingWindow = 90 * 24 * 60 * 60 * 1000; // 90 days ahead
 
-    // 1) Get all boxing leagues
-    const leaguesRes = await fetch(`${BASE}/search_all_leagues.php?s=Boxing`);
-    const leaguesJson = await leaguesRes.json();
-    const leagues = (leaguesJson.countries || leaguesJson.leagues || []).slice(0, 6);
+    // Try eventsnextleague first (next 15) and then season for more breadth
+    for (const lid of LEAGUE_IDS) {
+      const urls = [`${BASE}/eventsnextleague.php?id=${lid}`];
+      for (const s of SEASONS) {
+        urls.push(`${BASE}/eventsseason.php?id=${lid}&s=${s}`);
+      }
 
-    // 2) For each league, fetch next 15 events
-    for (const league of leagues) {
-      const lid = league.idLeague;
-      if (!lid) continue;
-      try {
-        const r = await fetch(`${BASE}/eventsnextleague.php?id=${lid}`);
-        const j = await r.json();
-        for (const e of j.events || []) {
-          if (seen.has(e.idEvent)) continue;
-          seen.add(e.idEvent);
-          // Filter: must be in future (not yet played)
-          const ts = e.strTimestamp ? new Date(e.strTimestamp).getTime() : 0;
-          if (ts && ts < now - 3 * 60 * 60 * 1000) continue; // allow 3h grace for "live"
-          events.push({
-            id: e.idEvent,
-            title: e.strEvent,
-            league: e.strLeague,
-            homeTeam: e.strHomeTeam,
-            awayTeam: e.strAwayTeam,
-            date: e.dateEvent,
-            time: e.strTime,
-            timestamp: e.strTimestamp,
-            thumb: e.strThumb,
-            poster: e.strPoster,
-            venue: e.strVenue,
-            country: e.strCountry,
-            isLive: ts > 0 && ts <= now && now - ts < 3 * 60 * 60 * 1000,
-          });
+      for (const url of urls) {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) continue;
+          const j = await r.json();
+          const arr = j.events || [];
+          if (!Array.isArray(arr)) continue;
+
+          for (const e of arr) {
+            if (seen.has(e.idEvent)) continue;
+            const status = (e.strStatus || "").toLowerCase();
+            if (status.includes("finished") || status.includes("ft") || status.includes("ended")) continue;
+
+            const ts = e.strTimestamp ? new Date(e.strTimestamp).getTime() : 0;
+            // Skip events that are clearly in the past (more than liveWindow ago)
+            if (ts && ts < now - liveWindow) continue;
+            // Skip events too far in the future
+            if (ts && ts > now + upcomingWindow) continue;
+
+            seen.add(e.idEvent);
+            const fighters = e.strHomeTeam && e.strAwayTeam
+              ? { home: e.strHomeTeam, away: e.strAwayTeam }
+              : parseFighters(e.strEvent || "");
+
+            events.push({
+              id: e.idEvent,
+              title: e.strEvent,
+              league: e.strLeague || "Boxing",
+              homeTeam: fighters.home,
+              awayTeam: fighters.away,
+              date: e.dateEvent,
+              time: e.strTime,
+              timestamp: e.strTimestamp,
+              thumb: e.strThumb,
+              poster: e.strPoster,
+              venue: e.strVenue,
+              country: e.strCountry,
+              isLive: ts > 0 && ts <= now && now - ts < liveWindow,
+            });
+          }
+        } catch (e) {
+          console.error('fetch error', url, e);
         }
-      } catch (e) {
-        console.error('league fetch error', lid, e);
       }
     }
 
-    // Sort by timestamp ascending
     events.sort((a, b) => {
       const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
       const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
