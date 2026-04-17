@@ -13,6 +13,9 @@ serve(async (req) => {
   try {
     const apiKey = Deno.env.get('BALLDONTLIE_API_KEY');
     const games: any[] = [];
+    const now = new Date();
+    const currentTime = Math.floor(now.getTime() / 1000);
+    const liveWindow = 4 * 60 * 60; // 4 hours after start = still "live"
 
     // 1. balldontlie - upcoming/live NBA games
     if (apiKey) {
@@ -27,14 +30,24 @@ serve(async (req) => {
           for (const g of data.data || []) {
             const status: string = g.status || '';
             const lower = status.toLowerCase();
-            // Skip finished games
-            if (lower.includes('final')) continue;
+
+            // Skip finished games (Final, FT, Ended, etc.)
+            if (lower.includes('final') || lower.includes('ft') || lower.includes('ended')) continue;
+
             // If status is an ISO timestamp (not yet started), it parses as a valid date
             const statusAsDate = new Date(status);
             const isScheduledTimestamp = !isNaN(statusAsDate.getTime()) && status.includes('T');
+
             // Live: status is something like "Qtr 2 5:23" or "Halftime" — not a timestamp, not Final, not empty
             const isLive = !isScheduledTimestamp && !lower.includes('final') && status.trim() !== '' && !lower.includes('postponed');
             const commenceTime = isScheduledTimestamp ? status : (g.date || '');
+
+            // Parse game time to check if it's in the past
+            const gameTime = g.date ? new Date(g.date).getTime() / 1000 : 0;
+
+            // Skip games that finished more than liveWindow ago
+            if (gameTime && gameTime < currentTime - liveWindow && lower.includes('final')) continue;
+
             games.push({
               id: `nba-${g.id}`,
               homeTeam: g.home_team.full_name,
@@ -60,13 +73,23 @@ serve(async (req) => {
         const espn = await espnRes.json();
         for (const ev of espn.events || []) {
           const state = ev.status?.type?.state; // "pre", "in", "post"
+          // Skip finished games
           if (state === 'post') continue;
+
           const comp = ev.competitions?.[0];
           const home = comp?.competitors?.find((c: any) => c.homeAway === 'home');
           const away = comp?.competitors?.find((c: any) => c.homeAway === 'away');
           if (!home || !away) continue;
+
           const id = `espn-${ev.id}`;
+
+          // Skip if we already have this game
           if (games.some((x) => x.homeTeam === home.team.displayName && x.awayTeam === away.team.displayName)) continue;
+
+          // Check if game is upcoming or live
+          const eventTime = new Date(ev.date).getTime() / 1000;
+          if (eventTime < currentTime - liveWindow && state !== 'in') continue;
+
           games.push({
             id,
             homeTeam: home.team.displayName,

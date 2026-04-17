@@ -1,4 +1,4 @@
-project_id = "jynsqirfkkvcahtrbykj"
+project_id = "wfyisqyqlijmaifunhqv"
 
 [functions.get-api-keys]
 verify_jwt = false
