@@ -1,15 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 const ODDS_BASE = "https://api.the-odds-api.com/v4";
+const ODDS_API_KEY = "64783c52fb02db93d5a68321a01a3e80";
 
 async function fetchWithKey(path: string) {
-  // Fetch key from edge function to avoid exposing it
-  const { data } = await supabase.functions.invoke("get-api-keys");
-  const apiKey = data?.oddsApiKey;
-  if (!apiKey) throw new Error("Odds API key not configured");
-  
-  const res = await fetch(`${ODDS_BASE}${path}&apiKey=${apiKey}`);
+  const res = await fetch(`${ODDS_BASE}${path}&apiKey=${ODDS_API_KEY}`);
   if (!res.ok) throw new Error(`Odds API error: ${res.status}`);
   return res.json();
 }
