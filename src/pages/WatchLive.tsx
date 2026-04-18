@@ -60,29 +60,27 @@ const WatchLive = () => {
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
 
-  // Load sports list once
+  // Load sports categories
   useEffect(() => {
     (async () => {
       try {
-        // Try new API first
         const categories = await sportsApi.fetchSportCategories();
         if (categories.length > 0) {
           setSports(categories);
+          // Set default category to first available
+          setCategory(categories[0].id);
         } else {
-          // Fallback to Supabase function
-          try {
-            const url = `https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/get-streams?action=sports`;
-            const r = await fetch(url);
-            const j = await r.json();
-            if (j?.success && Array.isArray(j.data)) setSports(j.data);
-          } catch {
-            /* keep hardcoded fallback */
-          }
+          // Fallback to hardcoded list
+          setSports(SPORT_FALLBACK);
+          setCategory("football");
         }
       } catch (error) {
         console.error("Failed to load sports categories:", error);
+        setSports(SPORT_FALLBACK);
+        setCategory("football");
+      } finally {
+        setTimeout(checkScroll, 50);
       }
-      setTimeout(checkScroll, 50);
     })();
   }, []);
 
@@ -97,29 +95,16 @@ const WatchLive = () => {
     };
   }, []);
 
-  // Load matches when category changes
+  // Fetch matches when category changes
   useEffect(() => {
     setSelected(null);
     setLoadingMatches(true);
     (async () => {
       try {
-        // Try new API first
-        const apiMatches = await sportsApi.fetchMatches(category);
-        if (apiMatches.length > 0) {
-          setMatches(apiMatches);
-        } else {
-          // Fallback to Supabase function
-          try {
-            const url = `https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/get-streams?action=matches&category=${encodeURIComponent(category)}`;
-            const r = await fetch(url);
-            const j = await r.json();
-            setMatches(j?.success && Array.isArray(j.data) ? j.data : []);
-          } catch {
-            setMatches([]);
-          }
-        }
+        const categoryMatches = await sportsApi.fetchMatches(category);
+        setMatches(categoryMatches);
       } catch (error) {
-        console.error("Failed to load matches:", error);
+        console.error("Failed to fetch matches for category:", error);
         setMatches([]);
       } finally {
         setLoadingMatches(false);
@@ -132,23 +117,18 @@ const WatchLive = () => {
     setActiveSourceIdx(0);
     setSelected({ ...m, sources: [] });
     try {
-      // Try new API first
+      // Fetch detailed match info with streaming URLs
       const detail = await sportsApi.fetchMatchDetail(category, m.id);
       if (detail) {
         setSelected(detail);
       } else {
-        // Fallback to Supabase function
-        try {
-          const url = `https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/get-streams?action=detail&category=${encodeURIComponent(category)}&id=${encodeURIComponent(m.id)}`;
-          const r = await fetch(url);
-          const j = await r.json();
-          if (j?.success && j.data) setSelected(j.data);
-        } catch (error) {
-          console.error("Fallback API also failed:", error);
-        }
+        // If detail fetch fails, use the match we already have
+        setSelected(m as MatchDetail);
       }
     } catch (error) {
       console.error("Failed to load match detail:", error);
+      // Fall back to the selected match we have
+      setSelected(m as MatchDetail);
     } finally {
       setLoadingDetail(false);
     }

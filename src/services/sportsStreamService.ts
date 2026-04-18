@@ -26,17 +26,29 @@ export interface StreamMatch {
   sources?: StreamSource[];
 }
 
-const API_BASE = "https://api.sportsrc.org";
+// Use Supabase proxy function which properly forwards to sportsrc.org
+const API_BASE = "https://jynsqirfkkvcahtrbykj.supabase.co/functions/v1/get-streams";
 
 /**
  * Fetch sports categories from the API
  */
 export async function fetchSportCategories(): Promise<Array<{ id: string; name: string }>> {
   try {
-    const response = await fetch(`${API_BASE}/sports`);
-    if (!response.ok) return [];
+    const url = `${API_BASE}?action=sports`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`Sports API error: ${response.status}`);
+      return [];
+    }
+
     const data = await response.json();
-    return Array.isArray(data.sports) ? data.sports : [];
+    
+    if (data?.success && Array.isArray(data.data)) {
+      return data.data;
+    }
+    
+    return [];
   } catch (error) {
     console.error("Failed to fetch sport categories:", error);
     return [];
@@ -44,34 +56,43 @@ export async function fetchSportCategories(): Promise<Array<{ id: string; name: 
 }
 
 /**
- * Fetch matches for a given category/sport
+ * Fetch all matches for a category
  */
-export async function fetchMatches(category: string): Promise<StreamMatch[]> {
+export async function fetchMatches(category: string = "football"): Promise<StreamMatch[]> {
   try {
-    const response = await fetch(`${API_BASE}/matches?category=${encodeURIComponent(category)}`);
-    if (!response.ok) return [];
+    const url = `${API_BASE}?action=matches&category=${encodeURIComponent(category)}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`Matches API error: ${response.status}`);
+      return [];
+    }
 
     const data = await response.json();
-    const matches = Array.isArray(data.matches) ? data.matches : [];
+    
+    // Extract matches array
+    const matches = data?.success && Array.isArray(data.data) ? data.data : [];
 
     return matches.map((m: any) => ({
-      id: m.id || m.matchId || String(Math.random()),
-      title: m.title || `${m.homeTeam || "Home"} vs ${m.awayTeam || "Away"}`,
+      id: m.id || m.matchId || String(Math.random()).slice(-8),
+      title: m.title || 
+             m.name ||
+             (m.homeTeam || m.home || "Home") + " vs " + (m.awayTeam || m.away || "Away"),
       category: m.category || category,
       date: m.date ? new Date(m.date).getTime() : Date.now(),
-      poster: m.poster || m.thumbnail,
+      poster: m.poster || m.thumbnail || m.image,
       popular: m.popular || false,
       teams: {
         home: {
-          name: m.homeTeam || m.teams?.home?.name,
-          badge: m.homeTeamBadge || m.teams?.home?.badge,
+          name: m.homeTeam || m.home?.name || m.teams?.home?.name,
+          badge: m.homeTeamBadge || m.teams?.home?.badge || m.home?.badge,
         },
         away: {
-          name: m.awayTeam || m.teams?.away?.name,
-          badge: m.awayTeamBadge || m.teams?.away?.badge,
+          name: m.awayTeam || m.away?.name || m.teams?.away?.name,
+          badge: m.awayTeamBadge || m.teams?.away?.badge || m.away?.badge,
         },
       },
-      sources: m.sources || [],
+      sources: parseStreamSources(m),
     }));
   } catch (error) {
     console.error(`Failed to fetch matches for category ${category}:`, error);
@@ -80,43 +101,100 @@ export async function fetchMatches(category: string): Promise<StreamMatch[]> {
 }
 
 /**
- * Fetch detailed match info with embed URLs and available streams
+ * Parse stream sources from match data
+ */
+function parseStreamSources(match: any): StreamSource[] {
+  const sources: StreamSource[] = [];
+
+  // If match has sources array, use it
+  if (Array.isArray(match.sources) && match.sources.length > 0) {
+    sources.push(...match.sources);
+  }
+
+  // If match has streamUrl or embed, add as primary source
+  if (match.streamUrl) {
+    sources.push({
+      url: match.streamUrl,
+      embed: match.streamUrl,
+      name: match.streamName || "Stream",
+      quality: match.streamQuality,
+    });
+  }
+
+  if (match.embed && !match.streamUrl) {
+    sources.push({
+      url: match.embed,
+      embed: match.embed,
+      name: "Stream",
+    });
+  }
+
+  // Check for multiple quality variants
+  if (match.stream_hd) {
+    sources.push({
+      url: match.stream_hd,
+      embed: match.stream_hd,
+      name: "HD Stream",
+      quality: "HD",
+    });
+  }
+
+  if (match.stream_sd) {
+    sources.push({
+      url: match.stream_sd,
+      embed: match.stream_sd,
+      name: "SD Stream",
+      quality: "SD",
+    });
+  }
+
+  return sources;
+}
+
+/**
+ * Fetch match details with all stream information
  */
 export async function fetchMatchDetail(
-  category: string,
+  category: string, 
   matchId: string
 ): Promise<StreamMatch | null> {
   try {
-    const response = await fetch(
-      `${API_BASE}/matches/${encodeURIComponent(matchId)}?category=${encodeURIComponent(category)}`
-    );
-    if (!response.ok) return null;
+    const url = `${API_BASE}?action=detail&category=${encodeURIComponent(category)}&id=${encodeURIComponent(matchId)}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`Match detail API error: ${response.status}`);
+      return null;
+    }
 
     const data = await response.json();
-    const m = data.match || data;
+    
+    if (!data?.success || !data.data) {
+      return null;
+    }
+
+    const m = data.data;
 
     return {
       id: m.id || m.matchId || matchId,
-      title: m.title || `${m.homeTeam || "Home"} vs ${m.awayTeam || "Away"}`,
+      title: m.title || 
+             m.name ||
+             (m.homeTeam || m.home || "Home") + " vs " + (m.awayTeam || m.away || "Away"),
       category: m.category || category,
       date: m.date ? new Date(m.date).getTime() : Date.now(),
-      poster: m.poster || m.thumbnail,
+      poster: m.poster || m.thumbnail || m.image,
       popular: m.popular || false,
       teams: {
         home: {
-          name: m.homeTeam || m.teams?.home?.name,
-          badge: m.homeTeamBadge || m.teams?.home?.badge,
+          name: m.homeTeam || m.home?.name || m.teams?.home?.name,
+          badge: m.homeTeamBadge || m.teams?.home?.badge || m.home?.badge,
         },
         away: {
-          name: m.awayTeam || m.teams?.away?.name,
-          badge: m.awayTeamBadge || m.teams?.away?.badge,
+          name: m.awayTeam || m.away?.name || m.teams?.away?.name,
+          badge: m.awayTeamBadge || m.teams?.away?.badge || m.away?.badge,
         },
       },
-      sources: Array.isArray(m.sources) ? m.sources : (m.streamUrl || m.embed ? [{
-        url: m.streamUrl || m.embed,
-        embed: m.streamUrl || m.embed,
-        name: "Stream",
-      }] : []),
+      sources: parseStreamSources(m),
     };
   } catch (error) {
     console.error(`Failed to fetch match detail for ${matchId}:`, error);
@@ -125,36 +203,38 @@ export async function fetchMatchDetail(
 }
 
 /**
- * Search matches across all categories
+ * Filter matches by category/sport
  */
-export async function searchMatches(query: string): Promise<StreamMatch[]> {
-  try {
-    const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
-    if (!response.ok) return [];
+export function filterMatchesByCategory(matches: StreamMatch[], category: string): StreamMatch[] {
+  if (!category || category === "all") return matches;
+  return matches.filter((m) => m.category.toLowerCase() === category.toLowerCase());
+}
 
-    const data = await response.json();
-    const matches = Array.isArray(data.matches) ? data.matches : [];
+/**
+ * Filter live matches
+ */
+export function getLiveMatches(matches: StreamMatch[]): StreamMatch[] {
+  const now = Date.now();
+  return matches.filter((m) => {
+    // Match is live if it started in the last 4 hours
+    const timeSinceStart = now - m.date;
+    return timeSinceStart >= 0 && timeSinceStart < 4 * 60 * 60 * 1000;
+  });
+}
 
-    return matches.map((m: any) => ({
-      id: m.id || m.matchId || String(Math.random()),
-      title: m.title || `${m.homeTeam || "Home"} vs ${m.awayTeam || "Away"}`,
-      category: m.category || "mixed",
-      date: m.date ? new Date(m.date).getTime() : Date.now(),
-      poster: m.poster || m.thumbnail,
-      teams: {
-        home: {
-          name: m.homeTeam || m.teams?.home?.name,
-          badge: m.homeTeamBadge || m.teams?.home?.badge,
-        },
-        away: {
-          name: m.awayTeam || m.teams?.away?.name,
-          badge: m.awayTeamBadge || m.teams?.away?.badge,
-        },
-      },
-      sources: m.sources || [],
+/**
+ * Get unique categories from matches
+ */
+export function getCategoriesFromMatches(matches: StreamMatch[]): Array<{ id: string; name: string }> {
+  const categoriesSet = new Set<string>();
+  matches.forEach((m) => {
+    if (m.category) categoriesSet.add(m.category);
+  });
+
+  return Array.from(categoriesSet)
+    .sort()
+    .map((cat) => ({
+      id: cat.toLowerCase(),
+      name: cat.charAt(0).toUpperCase() + cat.slice(1),
     }));
-  } catch (error) {
-    console.error("Failed to search matches:", error);
-    return [];
-  }
 }
