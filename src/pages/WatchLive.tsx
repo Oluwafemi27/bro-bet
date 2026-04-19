@@ -1,406 +1,248 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Layout from "@/components/layout/Layout";
-import { Tv, Loader2, ArrowLeft, Radio, ChevronLeft, ChevronRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import * as sportsApi from "@/services/sportsStreamService";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, PlayCircle, Radio, RefreshCw, Tv } from "lucide-react";
+import {
+  fetchTopicStreams,
+  liveStreamTopics,
+  type LiveStreamResult,
+  type StreamTopic,
+} from "@/services/sportsStreamService";
 
-interface Sport {
-  id: string;
-  name: string;
-}
+const TOPIC_IDS = liveStreamTopics.map((topic) => topic.id) as StreamTopic[];
 
-interface Match {
-  id: string;
-  title: string;
-  category: string;
-  date: number;
-  popular?: boolean;
-  poster?: string;
-  teams?: {
-    home?: { name: string; badge?: string };
-    away?: { name: string; badge?: string };
-  };
-}
-
-interface StreamSource {
-  source?: string;
-  name?: string;
-  url?: string;
-  embed?: string;
-  language?: string;
-  quality?: string;
-}
-
-interface MatchDetail extends Match {
-  sources?: StreamSource[];
-}
-
-const SPORT_FALLBACK: Sport[] = [
-  { id: "football", name: "Football" },
-  { id: "basketball", name: "Basketball" },
-  { id: "fight", name: "Fight (UFC, Boxing)" },
-  { id: "american-football", name: "American Football" },
-  { id: "tennis", name: "Tennis" },
-  { id: "cricket", name: "Cricket" },
-  { id: "hockey", name: "Hockey" },
-  { id: "baseball", name: "Baseball" },
-];
+const createTopicState = <T,>(initialValue: T): Record<StreamTopic, T> => ({
+  nba: initialValue,
+  boxing: initialValue,
+});
 
 const WatchLive = () => {
-  const [sports, setSports] = useState<Sport[]>(SPORT_FALLBACK);
-  const [category, setCategory] = useState<string>("football");
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [loadingMatches, setLoadingMatches] = useState(false);
-  const [selected, setSelected] = useState<MatchDetail | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [activeSourceIdx, setActiveSourceIdx] = useState(0);
-  const sportsScrollRef = useRef<HTMLDivElement>(null);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(true);
+  const [activeTopic, setActiveTopic] = useState<StreamTopic>("nba");
+  const [streamsByTopic, setStreamsByTopic] = useState<Record<StreamTopic, LiveStreamResult[]>>(
+    createTopicState<LiveStreamResult[]>([]),
+  );
+  const [selectedByTopic, setSelectedByTopic] = useState<Record<StreamTopic, LiveStreamResult | null>>(
+    createTopicState<LiveStreamResult | null>(null),
+  );
+  const [loadingByTopic, setLoadingByTopic] = useState<Record<StreamTopic, boolean>>(
+    createTopicState(false),
+  );
+  const [errorByTopic, setErrorByTopic] = useState<Record<StreamTopic, string | null>>(
+    createTopicState<string | null>(null),
+  );
 
-  // Load sports categories
-  useEffect(() => {
-    (async () => {
-      try {
-        const categories = await sportsApi.fetchSportCategories();
-        if (categories.length > 0) {
-          setSports(categories);
-          // Set default category to first available
-          setCategory(categories[0].id);
-        } else {
-          // Fallback to hardcoded list
-          setSports(SPORT_FALLBACK);
-          setCategory("football");
-        }
-      } catch (error) {
-        console.error("Failed to load sports categories:", error);
-        setSports(SPORT_FALLBACK);
-        setCategory("football");
-      } finally {
-        setTimeout(checkScroll, 50);
-      }
-    })();
-  }, []);
+  const loadStreams = useCallback(async (topic: StreamTopic) => {
+    setLoadingByTopic((prev) => ({ ...prev, [topic]: true }));
+    setErrorByTopic((prev) => ({ ...prev, [topic]: null }));
 
-  useEffect(() => {
-    checkScroll();
-    const scrollEl = sportsScrollRef.current;
-    scrollEl?.addEventListener('scroll', checkScroll);
-    window.addEventListener('resize', checkScroll);
-    return () => {
-      scrollEl?.removeEventListener('scroll', checkScroll);
-      window.removeEventListener('resize', checkScroll);
-    };
-  }, []);
-
-  // Fetch matches when category changes
-  useEffect(() => {
-    setSelected(null);
-    setLoadingMatches(true);
-    (async () => {
-      try {
-        const categoryMatches = await sportsApi.fetchMatches(category);
-        setMatches(categoryMatches);
-      } catch (error) {
-        console.error("Failed to fetch matches for category:", error);
-        setMatches([]);
-      } finally {
-        setLoadingMatches(false);
-      }
-    })();
-  }, [category]);
-
-  const openMatch = async (m: Match) => {
-    setLoadingDetail(true);
-    setActiveSourceIdx(0);
-    setSelected({ ...m, sources: [] });
     try {
-      // Fetch detailed match info with streaming URLs
-      const detail = await sportsApi.fetchMatchDetail(category, m.id);
-      if (detail) {
-        setSelected(detail);
-      } else {
-        // If detail fetch fails, use the match we already have
-        setSelected(m as MatchDetail);
-      }
-    } catch (error) {
-      console.error("Failed to load match detail:", error);
-      // Fall back to the selected match we have
-      setSelected(m as MatchDetail);
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
+      const streams = await fetchTopicStreams(topic, 5);
 
-  const isLive = (date: number) => {
-    const now = Date.now();
-    return date <= now && now - date < 4 * 60 * 60 * 1000;
-  };
+      setStreamsByTopic((prev) => ({
+        ...prev,
+        [topic]: streams,
+      }));
 
-  const checkScroll = () => {
-    if (sportsScrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = sportsScrollRef.current;
-      setShowLeftArrow(scrollLeft > 0);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
-    }
-  };
+      setSelectedByTopic((prev) => {
+        const currentSelection = prev[topic];
+        const nextSelection = currentSelection && streams.some((stream) => stream.videoId === currentSelection.videoId)
+          ? streams.find((stream) => stream.videoId === currentSelection.videoId) ?? streams[0] ?? null
+          : streams[0] ?? null;
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (sportsScrollRef.current) {
-      const scrollAmount = 300;
-      sportsScrollRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
+        return {
+          ...prev,
+          [topic]: nextSelection,
+        };
       });
-      setTimeout(checkScroll, 100);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to load live streams right now.";
+
+      setStreamsByTopic((prev) => ({ ...prev, [topic]: [] }));
+      setSelectedByTopic((prev) => ({ ...prev, [topic]: null }));
+      setErrorByTopic((prev) => ({ ...prev, [topic]: message }));
+    } finally {
+      setLoadingByTopic((prev) => ({ ...prev, [topic]: false }));
     }
-  };
+  }, []);
 
-  // Touch swipe handling
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
+  useEffect(() => {
+    TOPIC_IDS.forEach((topic) => {
+      void loadStreams(topic);
+    });
+  }, [loadStreams]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.changedTouches[0].screenX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    touchEndX.current = e.changedTouches[0].screenX;
-    handleSwipe();
-  };
-
-  const handleSwipe = () => {
-    const swipeThreshold = 50; // minimum swipe distance
-    const difference = touchStartX.current - touchEndX.current;
-
-    if (Math.abs(difference) > swipeThreshold) {
-      if (difference > 0) {
-        scroll('right'); // swiped left, scroll right
-      } else {
-        scroll('left'); // swiped right, scroll left
-      }
-    }
-  };
-
-  const formatTime = (ts: number) => {
-    const d = new Date(ts);
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
-    const sameDay = d.toDateString() === today.toDateString();
-    const isTomorrow = d.toDateString() === tomorrow.toDateString();
-    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    if (sameDay) return `Today ${time}`;
-    if (isTomorrow) return `Tomorrow ${time}`;
-    return d.toLocaleDateString([], { month: "short", day: "numeric" }) + ` ${time}`;
-  };
-
-  // ---- Detail / player view ----
-  if (selected) {
-    const sources = selected.sources || [];
-    const active = sources[activeSourceIdx];
-    const embedUrl = active?.embed || active?.url || "";
+  const renderTopicContent = (topic: StreamTopic) => {
+    const streams = streamsByTopic[topic];
+    const selected = selectedByTopic[topic];
+    const isLoading = loadingByTopic[topic];
+    const error = errorByTopic[topic];
 
     return (
-      <Layout>
-        <div className="min-h-screen flex flex-col w-full">
-          {/* Back button and title */}
-          <div className="flex-shrink-0 px-4 py-2 space-y-2 border-b border-border">
-            <Button variant="ghost" size="sm" onClick={() => setSelected(null)} className="-ml-2 text-sm h-9">
-              <ArrowLeft className="mr-1 h-4 w-4" /> Back
-            </Button>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                {isLive(selected.date) && (
-                  <Badge className="bg-destructive text-destructive-foreground text-xs">
-                    <Radio className="mr-1 h-2 w-2" /> LIVE
-                  </Badge>
-                )}
-              </div>
-              <h1 className="font-display text-lg font-bold line-clamp-2">{selected.title}</h1>
-              <p className="text-xs text-muted-foreground mt-1">{formatTime(selected.date)}</p>
-            </div>
-          </div>
-
-          {/* Video player - takes up remaining space */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="overflow-hidden rounded-none border-b border-border bg-card flex-1">
-              <div className="relative w-full h-full" style={{ paddingTop: "56.25%", paddingBottom: "0" }}>
-                {loadingDetail ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : embedUrl ? (
-                  <iframe
-                    key={embedUrl}
-                    src={embedUrl}
-                    title={selected.title}
-                    className="absolute inset-0 h-full w-full"
-                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    referrerPolicy="no-referrer"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center bg-muted">
-                    <Tv className="h-8 w-8 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      No stream yet. Usually appears 30–60 min before kickoff.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Controls section */}
-            <div className="flex-shrink-0 overflow-y-auto px-4 py-3 space-y-3">
-              {sources.length > 1 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold">Stream sources</p>
-                  <div className="flex flex-wrap gap-2">
-                    {sources.map((s, i) => (
-                      <Button
-                        key={i}
-                        size="sm"
-                        variant={i === activeSourceIdx ? "default" : "outline"}
-                        onClick={() => setActiveSourceIdx(i)}
-                        className="text-xs h-9"
-                      >
-                        {s.name || s.source || `Source ${i + 1}`}
-                        {s.language ? ` · ${s.language}` : ""}
-                        {s.quality ? ` · ${s.quality}` : ""}
-                      </Button>
-                    ))}
-                  </div>
+      <div className="space-y-4">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="aspect-video w-full bg-black">
+              {selected ? (
+                <iframe
+                  key={selected.videoId}
+                  src={selected.embedUrl}
+                  title={selected.title}
+                  className="h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              ) : isLoading ? (
+                <div className="flex h-full items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-white/80">
+                  <Tv className="h-10 w-10" />
+                  <p className="text-sm">No embeddable live streams found right now.</p>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                Streams provided by sportsrc.org
-              </p>
             </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+          </CardContent>
+          <CardHeader className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <CardTitle className="line-clamp-2 text-base sm:text-lg">
+                  {selected?.title || "Select a live stream"}
+                </CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selected?.channelTitle || "Top 5 YouTube live results"}
+                </p>
+              </div>
+              {selected && (
+                <Badge className="shrink-0 bg-destructive text-destructive-foreground">
+                  <Radio className="mr-1 h-3 w-3" /> LIVE
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+        </Card>
 
-  // ---- Sport picker + match list ----
-  return (
-    <Layout>
-      <div className="min-h-screen flex flex-col w-full">
-        {/* Header section - fixed height */}
-        <div className="flex-shrink-0 px-4 py-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Tv className="h-5 w-5 text-primary" />
-            <h1 className="font-display text-xl font-bold">Watch Live</h1>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">Top 5 live streams</h2>
+            <p className="text-xs text-muted-foreground">Only embeddable YouTube streams are shown.</p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Pick a sport then select a match to stream
-          </p>
-        </div>
-
-        {/* Sport tabs - fixed height, full width scroll */}
-        <div className="flex-shrink-0 relative px-4 py-2 border-b border-border">
-          {showLeftArrow && (
-            <button
-              onClick={() => scroll('left')}
-              className="absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-r from-background to-transparent p-2 text-primary hover:text-primary/80"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          )}
-          <div
-            ref={sportsScrollRef}
-            className="flex gap-2 overflow-x-auto scroll-smooth pb-2 pl-6 pr-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden cursor-grab active:cursor-grabbing"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void loadStreams(topic)}
+            disabled={isLoading}
           >
-            {sports.map((s) => (
-              <Button
-                key={s.id}
-                size="sm"
-                variant={s.id === category ? "default" : "outline"}
-                className="shrink-0 text-sm h-9 whitespace-nowrap"
-                onClick={() => setCategory(s.id)}
-              >
-                {s.name}
-              </Button>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Refresh
+          </Button>
+        </div>
+
+        {error ? (
+          <Card>
+            <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+          </Card>
+        ) : null}
+
+        {isLoading && streams.length === 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Card key={index} className="overflow-hidden">
+                <Skeleton className="aspect-video w-full rounded-none" />
+                <CardContent className="space-y-2 p-4">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </CardContent>
+              </Card>
             ))}
           </div>
-          {showRightArrow && (
-            <button
-              onClick={() => scroll('right')}
-              className="absolute right-0 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-l from-background to-transparent p-2 text-primary hover:text-primary/80"
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          )}
+        ) : streams.length > 0 ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {streams.map((stream) => {
+              const isSelected = selected?.videoId === stream.videoId;
+
+              return (
+                <button
+                  key={stream.videoId}
+                  type="button"
+                  onClick={() => setSelectedByTopic((prev) => ({ ...prev, [topic]: stream }))}
+                  className="text-left"
+                >
+                  <Card className={`overflow-hidden transition ${isSelected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50"}`}>
+                    <div className="relative aspect-video overflow-hidden bg-muted">
+                      <img
+                        src={stream.thumbnailUrl}
+                        alt={stream.title}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/20 to-transparent px-3 py-2 text-white">
+                        <Badge className="bg-destructive text-destructive-foreground">
+                          <Radio className="mr-1 h-3 w-3" /> LIVE
+                        </Badge>
+                        <PlayCircle className="h-5 w-5" />
+                      </div>
+                    </div>
+                    <CardContent className="space-y-1 p-4">
+                      <p className="line-clamp-2 text-sm font-semibold">{stream.title}</p>
+                      <p className="text-xs text-muted-foreground">{stream.channelTitle}</p>
+                    </CardContent>
+                  </Card>
+                </button>
+              );
+            })}
+          </div>
+        ) : !error ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+              <Tv className="h-8 w-8 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">No live streams available</p>
+                <p className="text-xs text-muted-foreground">Try refreshing to fetch the latest YouTube results.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    );
+  };
+
+  return (
+    <Layout>
+      <div className="min-h-screen w-full px-4 py-4">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+            <Tv className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Watch Live</h1>
+            <p className="text-sm text-muted-foreground">
+              Browse embeddable YouTube live streams for NBA basketball and boxing.
+            </p>
+          </div>
         </div>
 
-        {/* Matches area - scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          {loadingMatches ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : matches.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Tv className="mb-3 h-10 w-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground text-center">
-                No live or upcoming matches for this sport
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2 pb-4">
-              {matches.map((m) => {
-                const live = isLive(m.date);
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => openMatch(m)}
-                    className="w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/50 hover:bg-card/80 active:bg-card/60"
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {m.teams?.home?.badge && (
-                          <img
-                            src={m.teams.home.badge}
-                            alt=""
-                            loading="lazy"
-                            className="h-8 w-8 shrink-0 rounded-full bg-muted object-contain"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">{m.title}</p>
-                          <p className="text-xs text-muted-foreground">{formatTime(m.date)}</p>
-                        </div>
-                        {m.teams?.away?.badge && (
-                          <img
-                            src={m.teams.away.badge}
-                            alt=""
-                            loading="lazy"
-                            className="h-8 w-8 shrink-0 rounded-full bg-muted object-contain"
-                          />
-                        )}
-                      </div>
-                      {live && (
-                        <div className="flex justify-end">
-                          <Badge className="bg-destructive text-destructive-foreground text-xs">
-                            <Radio className="mr-1 h-2 w-2" /> LIVE
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <Tabs value={activeTopic} onValueChange={(value) => setActiveTopic(value as StreamTopic)} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            {liveStreamTopics.map((topic) => (
+              <TabsTrigger key={topic.id} value={topic.id}>
+                {topic.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {liveStreamTopics.map((topic) => (
+            <TabsContent key={topic.id} value={topic.id} className="mt-0">
+              {renderTopicContent(topic.id)}
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
     </Layout>
   );

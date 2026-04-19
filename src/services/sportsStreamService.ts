@@ -1,241 +1,63 @@
-/**
- * Sports Stream Service
- * Integrates with sportsrc.org API to fetch live sports matches with embed URLs
- */
+import { supabase } from "@/integrations/supabase/client";
 
-export interface StreamSource {
-  source?: string;
-  name?: string;
-  url?: string;
-  embed?: string;
-  language?: string;
-  quality?: string;
-}
+export type StreamTopic = "nba" | "boxing";
 
-export interface StreamMatch {
+export interface LiveStreamResult {
   id: string;
+  videoId: string;
   title: string;
-  category: string;
-  date: number;
-  popular?: boolean;
-  poster?: string;
-  teams?: {
-    home?: { name: string; badge?: string };
-    away?: { name: string; badge?: string };
-  };
-  sources?: StreamSource[];
+  channelTitle: string;
+  thumbnailUrl: string;
+  publishedAt?: string;
+  embedUrl: string;
 }
 
-// Use Supabase proxy function which properly forwards to sportsrc.org
-const API_BASE = "https://jynsqirfkkvcahtrbykj.supabase.co/functions/v1/get-streams";
+export const liveStreamTopics: Array<{ id: StreamTopic; label: string; query: string }> = [
+  {
+    id: "nba",
+    label: "NBA Basketball",
+    query: "NBA basketball live",
+  },
+  {
+    id: "boxing",
+    label: "Boxing",
+    query: "boxing live",
+  },
+];
 
-/**
- * Fetch sports categories from the API
- */
-export async function fetchSportCategories(): Promise<Array<{ id: string; name: string }>> {
-  try {
-    const url = `${API_BASE}?action=sports`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      console.error(`Sports API error: ${response.status}`);
-      return [];
-    }
+const topicQueryMap = liveStreamTopics.reduce<Record<StreamTopic, string>>((acc, topic) => {
+  acc[topic.id] = topic.query;
+  return acc;
+}, {
+  nba: "NBA basketball live",
+  boxing: "boxing live",
+});
 
-    const data = await response.json();
-    
-    if (data?.success && Array.isArray(data.data)) {
-      return data.data;
-    }
-    
-    return [];
-  } catch (error) {
-    console.error("Failed to fetch sport categories:", error);
+export async function fetchLiveStreams(query: string, maxResults = 5): Promise<LiveStreamResult[]> {
+  const trimmedQuery = query.trim();
+
+  if (!trimmedQuery) {
     return [];
   }
-}
 
-/**
- * Fetch all matches for a category
- */
-export async function fetchMatches(category: string = "football"): Promise<StreamMatch[]> {
-  try {
-    const url = `${API_BASE}?action=matches&category=${encodeURIComponent(category)}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      console.error(`Matches API error: ${response.status}`);
-      return [];
-    }
-
-    const data = await response.json();
-    
-    // Extract matches array
-    const matches = data?.success && Array.isArray(data.data) ? data.data : [];
-
-    return matches.map((m: any) => ({
-      id: m.id || m.matchId || String(Math.random()).slice(-8),
-      title: m.title || 
-             m.name ||
-             (m.homeTeam || m.home || "Home") + " vs " + (m.awayTeam || m.away || "Away"),
-      category: m.category || category,
-      date: m.date ? new Date(m.date).getTime() : Date.now(),
-      poster: m.poster || m.thumbnail || m.image,
-      popular: m.popular || false,
-      teams: {
-        home: {
-          name: m.homeTeam || m.home?.name || m.teams?.home?.name,
-          badge: m.homeTeamBadge || m.teams?.home?.badge || m.home?.badge,
-        },
-        away: {
-          name: m.awayTeam || m.away?.name || m.teams?.away?.name,
-          badge: m.awayTeamBadge || m.teams?.away?.badge || m.away?.badge,
-        },
-      },
-      sources: parseStreamSources(m),
-    }));
-  } catch (error) {
-    console.error(`Failed to fetch matches for category ${category}:`, error);
-    return [];
-  }
-}
-
-/**
- * Parse stream sources from match data
- * Handles sportsrc.org API format with embedUrl, streamNo, hd, language fields
- */
-function parseStreamSources(match: any): StreamSource[] {
-  const sources: StreamSource[] = [];
-
-  // If match has sources array, map to our format
-  if (Array.isArray(match.sources) && match.sources.length > 0) {
-    match.sources.forEach((source: any) => {
-      sources.push({
-        url: source.embedUrl || source.url || source.embed,
-        embed: source.embedUrl || source.url || source.embed,
-        name: source.name || `Stream ${source.streamNo || sources.length + 1}`,
-        language: source.language || undefined,
-        quality: source.hd ? "HD" : "SD",
-        source: source.source,
-      });
-    });
-  }
-
-  // Fallback: if no sources array but has embedUrl at top level
-  if (sources.length === 0 && match.embedUrl) {
-    sources.push({
-      url: match.embedUrl,
-      embed: match.embedUrl,
-      name: "Stream",
-      quality: match.hd ? "HD" : "SD",
-    });
-  }
-
-  // Fallback: if no sources but has streamUrl or embed
-  if (sources.length === 0) {
-    if (match.streamUrl) {
-      sources.push({
-        url: match.streamUrl,
-        embed: match.streamUrl,
-        name: "Stream",
-        quality: match.streamQuality,
-      });
-    } else if (match.embed) {
-      sources.push({
-        url: match.embed,
-        embed: match.embed,
-        name: "Stream",
-      });
-    }
-  }
-
-  return sources;
-}
-
-/**
- * Fetch match details with all stream information
- */
-export async function fetchMatchDetail(
-  category: string, 
-  matchId: string
-): Promise<StreamMatch | null> {
-  try {
-    const url = `${API_BASE}?action=detail&category=${encodeURIComponent(category)}&id=${encodeURIComponent(matchId)}`;
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      console.error(`Match detail API error: ${response.status}`);
-      return null;
-    }
-
-    const data = await response.json();
-    
-    if (!data?.success || !data.data) {
-      return null;
-    }
-
-    const m = data.data;
-
-    return {
-      id: m.id || m.matchId || matchId,
-      title: m.title || 
-             m.name ||
-             (m.homeTeam || m.home || "Home") + " vs " + (m.awayTeam || m.away || "Away"),
-      category: m.category || category,
-      date: m.date ? new Date(m.date).getTime() : Date.now(),
-      poster: m.poster || m.thumbnail || m.image,
-      popular: m.popular || false,
-      teams: {
-        home: {
-          name: m.homeTeam || m.home?.name || m.teams?.home?.name,
-          badge: m.homeTeamBadge || m.teams?.home?.badge || m.home?.badge,
-        },
-        away: {
-          name: m.awayTeam || m.away?.name || m.teams?.away?.name,
-          badge: m.awayTeamBadge || m.teams?.away?.badge || m.away?.badge,
-        },
-      },
-      sources: parseStreamSources(m),
-    };
-  } catch (error) {
-    console.error(`Failed to fetch match detail for ${matchId}:`, error);
-    return null;
-  }
-}
-
-/**
- * Filter matches by category/sport
- */
-export function filterMatchesByCategory(matches: StreamMatch[], category: string): StreamMatch[] {
-  if (!category || category === "all") return matches;
-  return matches.filter((m) => m.category.toLowerCase() === category.toLowerCase());
-}
-
-/**
- * Filter live matches
- */
-export function getLiveMatches(matches: StreamMatch[]): StreamMatch[] {
-  const now = Date.now();
-  return matches.filter((m) => {
-    // Match is live if it started in the last 4 hours
-    const timeSinceStart = now - m.date;
-    return timeSinceStart >= 0 && timeSinceStart < 4 * 60 * 60 * 1000;
-  });
-}
-
-/**
- * Get unique categories from matches
- */
-export function getCategoriesFromMatches(matches: StreamMatch[]): Array<{ id: string; name: string }> {
-  const categoriesSet = new Set<string>();
-  matches.forEach((m) => {
-    if (m.category) categoriesSet.add(m.category);
+  const { data, error } = await supabase.functions.invoke("get-streams", {
+    body: {
+      query: trimmedQuery,
+      maxResults,
+    },
   });
 
-  return Array.from(categoriesSet)
-    .sort()
-    .map((cat) => ({
-      id: cat.toLowerCase(),
-      name: cat.charAt(0).toUpperCase() + cat.slice(1),
-    }));
+  if (error) {
+    throw new Error(error.message || "Failed to fetch YouTube live streams");
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || "Failed to fetch YouTube live streams");
+  }
+
+  return Array.isArray(data.streams) ? data.streams : [];
+}
+
+export function fetchTopicStreams(topic: StreamTopic, maxResults = 5) {
+  return fetchLiveStreams(topicQueryMap[topic], maxResults);
 }
