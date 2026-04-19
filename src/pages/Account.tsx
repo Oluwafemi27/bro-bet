@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Wallet, ArrowUpCircle, ArrowDownCircle, History, LogOut, Copy, Sun, Moon } from "lucide-react";
+import { Wallet, ArrowUpCircle, ArrowDownCircle, History, LogOut, Copy, Sun, Moon, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,6 +16,7 @@ const Account = () => {
   const [bets, setBets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isDark, setIsDark] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login");
@@ -23,6 +24,11 @@ const Account = () => {
 
   useEffect(() => {
     if (user) {
+      // Check if user is admin
+      supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data }) => {
+        setIsAdmin(!!data);
+      });
+
       supabase.from("bets").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10).then(({ data }) => setBets(data || []));
       supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10).then(({ data }) => setTransactions(data || []));
     }
@@ -96,6 +102,13 @@ const Account = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Admin Panel Button */}
+        {isAdmin && (
+          <Button className="w-full justify-start gap-2 bg-amber-600 hover:bg-amber-700" onClick={() => navigate("/admin")}>
+            <Shield className="h-4 w-4" /> Admin Panel
+          </Button>
+        )}
 
         {/* Bet History */}
         <Card>
