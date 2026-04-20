@@ -29,7 +29,7 @@ const quickLinks = [
 const Index = () => {
   const [activeLeague, setActiveLeague] = useState("soccer_epl");
   const sportKey = activeLeague === "all" ? "soccer_epl" : activeLeague;
-  const { data: odds, isLoading } = useOdds(sportKey);
+  const { data: odds, isLoading, error } = useOdds(sportKey);
 
   const now = Date.now();
   const matches = (odds || [])
@@ -89,13 +89,20 @@ const Index = () => {
           <div className="space-y-3">
             {isLoading
               ? Array.from({ length: 5 }).map((_, i) => <MatchSkeleton key={i} />)
-              : matches.length > 0
-                ? matches.map((m: any) => <MatchCard key={m.id} {...m} />)
-                : (
-                  <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
-                    <p>No matches available. Configure your API keys to see live data.</p>
+              : error
+                ? (
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-8 text-center text-red-600">
+                    <p className="font-semibold">Unable to load matches</p>
+                    <p className="text-sm mt-2">{error instanceof Error ? error.message : "The odds API is temporarily unavailable. Please try again later."}</p>
                   </div>
-                )}
+                )
+                : matches.length > 0
+                  ? matches.map((m: any) => <MatchCard key={m.id} {...m} />)
+                  : (
+                    <div className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
+                      <p>No matches available right now. Check back later.</p>
+                    </div>
+                  )}
           </div>
         </div>
       </div>

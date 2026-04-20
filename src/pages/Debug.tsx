@@ -9,6 +9,58 @@ const Debug = () => {
   const [status, setStatus] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
+  const checkConfiguration = () => {
+    setLoading(true);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        setStatus(
+          `Missing Configuration!\n` +
+          `VITE_SUPABASE_URL: ${supabaseUrl ? "✓ Set" : "✗ Missing"}\n` +
+          `VITE_SUPABASE_PUBLISHABLE_KEY: ${supabaseKey ? "✓ Set" : "✗ Missing"}\n\n` +
+          `Current values:\n` +
+          `URL: ${supabaseUrl || "undefined"}\n` +
+          `KEY: ${supabaseKey ? supabaseKey.substring(0, 20) + "..." : "undefined"}`
+        );
+      } else {
+        // Try to make a simple request to verify connectivity
+        const testUrl = `${supabaseUrl}/rest/v1/`;
+        fetch(testUrl, {
+          method: "GET",
+          headers: {
+            "apikey": supabaseKey,
+            "Accept": "application/json",
+          },
+          mode: "cors",
+        })
+          .then(() => {
+            setStatus(
+              `Configuration OK!\n\n` +
+              `✓ Supabase URL is reachable\n` +
+              `✓ API Key is valid\n\n` +
+              `URL: ${supabaseUrl}\n` +
+              `Key (first 20 chars): ${supabaseKey.substring(0, 20)}...`
+            );
+          })
+          .catch((error) => {
+            setStatus(
+              `Configuration Error!\n\n` +
+              `✗ Could not reach Supabase server\n\n` +
+              `URL: ${supabaseUrl}\n` +
+              `Error: ${error.message}\n\n` +
+              `This could be a CORS issue or network connectivity problem.`
+            );
+          })
+          .finally(() => setLoading(false));
+      }
+    } catch (error) {
+      setStatus(`Error: ${error}`);
+      setLoading(false);
+    }
+  };
+
   const checkDatabaseStatus = async () => {
     setLoading(true);
     try {
@@ -95,6 +147,25 @@ const Debug = () => {
   return (
     <div className="container py-8 space-y-6">
       <h1 className="text-3xl font-bold">Debug Dashboard</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuration & Connectivity</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Button onClick={checkConfiguration} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700">
+              Check Configuration & Connection
+            </Button>
+          </div>
+
+          {status && (
+            <div className="rounded-lg bg-secondary p-4 font-mono text-sm whitespace-pre-wrap break-words max-h-96 overflow-y-auto">
+              {status}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
