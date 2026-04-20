@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, PlayCircle, Radio, RefreshCw, Tv } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchTopicStreams,
   liveStreamTopics,
@@ -22,6 +24,8 @@ const createTopicState = <T,>(initialValue: T): Record<StreamTopic, T> => ({
 });
 
 const WatchLive = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [activeTopic, setActiveTopic] = useState<StreamTopic>("nba");
   const [streamsByTopic, setStreamsByTopic] = useState<Record<StreamTopic, LiveStreamResult[]>>(
     createTopicState<LiveStreamResult[]>([]),
@@ -35,6 +39,13 @@ const WatchLive = () => {
   const [errorByTopic, setErrorByTopic] = useState<Record<StreamTopic, string | null>>(
     createTopicState<string | null>(null),
   );
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/login");
+    }
+  }, [user, authLoading, navigate]);
 
   const loadStreams = useCallback(async (topic: StreamTopic) => {
     setLoadingByTopic((prev) => ({ ...prev, [topic]: true }));
@@ -213,6 +224,20 @@ const WatchLive = () => {
       </div>
     );
   };
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen w-full flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login
+  }
 
   return (
     <Layout>

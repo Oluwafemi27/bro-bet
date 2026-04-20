@@ -25,34 +25,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId);
-    if (data && data.length > 0) {
-      setProfile(data[0]);
-    } else {
-      // Create a default profile if it doesn't exist
-      const { data: newProfile } = await supabase
-        .from("profiles")
-        .insert({
-          id: userId,
-          full_name: "",
-          email: "",
-          balance: 0,
-          bonus_balance: 0,
-          kyc_verified: false,
-          referral_code: Math.random().toString(36).substring(2, 11).toUpperCase(),
-        })
-        .select()
-        .single();
-      if (newProfile) setProfile(newProfile);
+    try {
+      const { data, error: selectError } = await supabase.from("profiles").select("*").eq("id", userId);
+      if (selectError) throw selectError;
+
+      if (data && data.length > 0) {
+        setProfile(data[0]);
+      } else {
+        // Create a default profile if it doesn't exist
+        const { data: newProfile, error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: userId,
+            full_name: "",
+            email: null,
+            balance: 0,
+            bonus_balance: 0,
+            kyc_verified: false,
+            referral_code: Math.random().toString(36).substring(2, 11).toUpperCase(),
+          })
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        if (newProfile) setProfile(newProfile);
+      }
+    } catch (error) {
+      console.error("Error fetching/creating profile:", error);
+      // Set a minimal profile to allow user to function even if profile creation fails
+      setProfile({
+        id: userId,
+        full_name: "",
+        email: null,
+        balance: 0,
+        bonus_balance: 0,
+        kyc_verified: false,
+        referral_code: "",
+        created_at: new Date().toISOString(),
+        phone: null,
+        updated_at: new Date().toISOString(),
+      });
     }
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => fetchProfile(session.user.id), 500);
+        await fetchProfile(session.user.id);
       } else {
         setProfile(null);
       }
@@ -60,13 +83,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, metadata: { full_name: string; phone: string }) => {
