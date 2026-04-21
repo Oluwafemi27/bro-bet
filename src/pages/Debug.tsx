@@ -61,6 +61,57 @@ const Debug = () => {
     }
   };
 
+  const checkDatabaseSchema = async () => {
+    setLoading(true);
+    try {
+      const results: string[] = [];
+
+      // Check if user_roles table exists
+      try {
+        const { data, error } = await supabase
+          .from("user_roles")
+          .select("id")
+          .limit(1);
+
+        if (error) {
+          results.push(`✗ user_roles table: NOT FOUND or NOT ACCESSIBLE`);
+          results.push(`  Error: ${error.message}`);
+        } else {
+          results.push(`✓ user_roles table: EXISTS and is accessible`);
+        }
+      } catch (e) {
+        results.push(`✗ user_roles table: ERROR - ${(e as Error).message}`);
+      }
+
+      // Check if has_role RPC function exists
+      try {
+        const testUser = "00000000-0000-0000-0000-000000000000";
+        const { data, error } = await supabase.rpc("has_role", {
+          _user_id: testUser,
+          _role: "admin"
+        });
+
+        if (error && error.message.includes("does not exist")) {
+          results.push(`✗ has_role RPC function: NOT CREATED`);
+          results.push(`  Error: ${error.message}`);
+        } else if (error) {
+          results.push(`✗ has_role RPC function: ERROR - ${error.message}`);
+        } else {
+          results.push(`✓ has_role RPC function: EXISTS and is callable`);
+        }
+      } catch (e) {
+        results.push(`✗ has_role RPC check: ERROR - ${(e as Error).message}`);
+      }
+
+      const message = results.join("\n");
+      setStatus(`DATABASE SCHEMA CHECK:\n\n${message}\n\nIMPORTANT: Run the SQL migration script in Supabase if tables/functions are missing.`);
+    } catch (error) {
+      setStatus(`Error checking schema: ${error}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const checkDatabaseStatus = async () => {
     setLoading(true);
     try {
@@ -173,6 +224,9 @@ const Debug = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            <Button onClick={checkDatabaseSchema} disabled={loading} className="w-full bg-purple-600 hover:bg-purple-700">
+              Check Database Schema (IMPORTANT)
+            </Button>
             <Button onClick={checkDatabaseStatus} disabled={loading} className="w-full">
               Check Database Status
             </Button>
@@ -197,19 +251,29 @@ const Debug = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Instructions</CardTitle>
+          <CardTitle>Setup Instructions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-yellow-900">
+            <p className="font-bold mb-2">⚠️ IMPORTANT: Database Setup Required</p>
+            <p>Before using the admin features, you MUST run the SQL migration in Supabase:</p>
+          </div>
+
           <ol className="list-decimal list-inside space-y-2">
-            <li>Click "Check Database Status" to see existing users</li>
+            <li>Go to <strong>Supabase Dashboard</strong> → <strong>SQL Editor</strong></li>
+            <li>Create a new query and copy/paste the SQL from <code>supabase/migrations/setup_admin_roles.sql</code></li>
+            <li>Click <strong>Run</strong> to execute the migration</li>
+            <li>Come back here and click <strong>"Check Database Schema (IMPORTANT)"</strong> to verify</li>
             <li>Click "Create/Register Test User" to register oluwafemiod7@gmail.com</li>
-            <li>Click "Run Setup Admin Function" to make them admin</li>
-            <li>Click "Test Login" to verify login works</li>
+            <li>Click "Run Setup Admin Function" to assign admin role</li>
+            <li>Click "Test Login" to verify it works</li>
             <li>Go to /login and use those credentials</li>
           </ol>
-          <p className="text-muted-foreground">
-            If you see RLS policy errors, you need to run the SQL script in supabase/fix-rls.sql
-          </p>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-blue-900 text-xs">
+            <p><strong>SQL Migration Location:</strong> <code>supabase/migrations/setup_admin_roles.sql</code></p>
+            <p className="mt-1">This creates the user_roles table and has_role() RPC function needed for admin features.</p>
+          </div>
         </CardContent>
       </Card>
     </div>

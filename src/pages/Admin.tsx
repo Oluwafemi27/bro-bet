@@ -34,18 +34,61 @@ const Admin = () => {
       return;
     }
     if (user) {
-      supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data }) => {
-        if (!data) {
-          toast({ title: "Access denied", variant: "destructive" });
+      const checkAdminAccess = async () => {
+        try {
+          // Try RPC function first
+          const { data, error } = await supabase.rpc("has_role", {
+            _user_id: user.id,
+            _role: "admin"
+          });
+
+          if (error) {
+            console.warn("RPC has_role not available yet:", error.message);
+            // Fallback: check user_roles table directly
+            const { data: roleData, error: roleError } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", user.id)
+              .eq("role", "admin")
+              .limit(1);
+
+            if (roleError) {
+              console.error("Error checking user_roles:", roleError);
+              toast({ title: "Error checking admin status", variant: "destructive" });
+              navigate("/");
+              setChecking(false);
+              return;
+            }
+
+            const isAdmin = roleData && roleData.length > 0;
+            if (!isAdmin) {
+              toast({ title: "Access denied", variant: "destructive" });
+              navigate("/");
+            } else {
+              setIsAdmin(true);
+              loadData();
+            }
+          } else {
+            if (!data) {
+              toast({ title: "Access denied", variant: "destructive" });
+              navigate("/");
+            } else {
+              setIsAdmin(true);
+              loadData();
+            }
+          }
+        } catch (err) {
+          console.error("Unexpected error in admin check:", err);
+          toast({ title: "An error occurred", variant: "destructive" });
           navigate("/");
-        } else {
-          setIsAdmin(true);
-          loadData();
+        } finally {
+          setChecking(false);
         }
-        setChecking(false);
-      });
+      };
+
+      checkAdminAccess();
     }
-  }, [user, loading]);
+  }, [user, loading, toast, navigate]);
 
   const loadData = async () => {
     const [u, b, t, p] = await Promise.all([

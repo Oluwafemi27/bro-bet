@@ -24,21 +24,62 @@ const Account = () => {
 
   useEffect(() => {
     if (user) {
-      // Check if user is admin
-      supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data, error }) => {
-        if (error) {
-          console.error("Error checking admin role:", error);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(!!data);
-        }
-      }).catch((err) => {
-        console.error("Error in admin role check:", err);
-        setIsAdmin(false);
-      });
+      // Check if user is admin using RPC, with fallback to user_roles table check
+      const checkAdminStatus = async () => {
+        try {
+          // Try RPC function first
+          const { data, error } = await supabase.rpc("has_role", {
+            _user_id: user.id,
+            _role: "admin"
+          });
 
-      supabase.from("bets").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10).then(({ data }) => setBets(data || [])).catch((err) => console.error("Error fetching bets:", err));
-      supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10).then(({ data }) => setTransactions(data || [])).catch((err) => console.error("Error fetching transactions:", err));
+          if (error) {
+            console.warn("RPC has_role error (expected if SQL not run yet):", error.message);
+            // Fallback: check user_roles table directly
+            const { data: roleData, error: roleError } = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", user.id)
+              .eq("role", "admin")
+              .limit(1);
+
+            if (roleError) {
+              console.error("Error checking user_roles table:", roleError);
+              setIsAdmin(false);
+            } else {
+              setIsAdmin((roleData && roleData.length > 0) || false);
+            }
+          } else {
+            setIsAdmin(!!data);
+          }
+        } catch (err) {
+          console.error("Unexpected error in admin check:", err);
+          setIsAdmin(false);
+        }
+      };
+
+      checkAdminStatus();
+
+      // Load user data
+      supabase.from("bets")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10)
+        .then(({ data, error }) => {
+          if (error) console.error("Error fetching bets:", error);
+          setBets(data || []);
+        });
+
+      supabase.from("transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10)
+        .then(({ data, error }) => {
+          if (error) console.error("Error fetching transactions:", error);
+          setTransactions(data || []);
+        });
     }
   }, [user]);
 
