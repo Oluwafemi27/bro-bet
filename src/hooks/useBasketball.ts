@@ -18,9 +18,26 @@ export interface BasketballGame {
 
 async function fetchBasketball(): Promise<BasketballGame[]> {
   try {
-    const { data, error } = await supabase.functions.invoke("get-basketball");
-    if (error) throw error;
-    return data?.games || [];
+    // Create a timeout promise that rejects after 10 seconds
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Basketball fetch timeout')), 10000)
+    );
+
+    const fetchPromise = supabase.functions.invoke("get-basketball");
+
+    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+
+    if (error) {
+      console.error('basketball edge function error:', error);
+      return [];
+    }
+
+    if (!data || !Array.isArray(data.games)) {
+      console.warn('Invalid basketball data format:', data);
+      return [];
+    }
+
+    return data.games;
   } catch (e) {
     console.error('basketball fetch error', e);
     return [];

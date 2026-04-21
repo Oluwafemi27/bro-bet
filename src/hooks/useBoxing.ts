@@ -45,8 +45,17 @@ async function fetchBoxing(): Promise<BoxingEvent[]> {
 
     for (const url of urls) {
       try {
-        const r = await fetch(url);
-        if (!r.ok) continue;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout per URL
+
+        const r = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!r.ok) {
+          console.warn(`Failed to fetch ${url}:`, r.status);
+          continue;
+        }
+
         const j = await r.json();
         const arr = j.events || [];
         if (!Array.isArray(arr)) continue;
@@ -82,7 +91,7 @@ async function fetchBoxing(): Promise<BoxingEvent[]> {
           });
         }
       } catch (e) {
-        console.error('fetch error', url, e);
+        console.error('boxing fetch error for url', url, ':', (e as Error).message);
       }
     }
   }

@@ -16,11 +16,16 @@ const Live = () => {
   const [activeSport, setActiveSport] = useState<SportFilter>("all");
 
   // Fetch data from all sports
-  const { data: odds, isLoading: footballLoading } = useOdds("soccer_epl", true);
-  const { data: basketballGames, isLoading: basketballLoading } = useBasketball();
-  const { data: boxingEvents, isLoading: boxingLoading } = useBoxing();
+  const { data: odds = [], isLoading: footballLoading, error: footballError } = useOdds("soccer_epl", true);
+  const { data: basketballGames = [], isLoading: basketballLoading, error: basketballError } = useBasketball();
+  const { data: boxingEvents = [], isLoading: boxingLoading, error: boxingError } = useBoxing();
 
   const isLoading = footballLoading || basketballLoading || boxingLoading;
+  const hasErrors = footballError || basketballError || boxingError;
+
+  if (hasErrors) {
+    console.warn('Live page errors:', { footballError, basketballError, boxingError });
+  }
 
   // Show games that are currently live (started within 4 hours) or starting soon (within 30 mins)
   const now = Date.now();
