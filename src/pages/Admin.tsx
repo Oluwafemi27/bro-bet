@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Users, Receipt, TrendingUp, Megaphone, BarChart3, DollarSign, Activity, Trophy, Plus, Trash2, Edit2 } from "lucide-react";
+import { Users, Receipt, TrendingUp, Megaphone, BarChart3, DollarSign, Activity, Trophy, Plus, Trash2, Edit2, ArrowLeft, Gift, MessageSquare, Send as SendIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ const Admin = () => {
   const [bets, setBets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [promotions, setPromotions] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bets' | 'transactions' | 'analytics' | 'promotions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'bets' | 'transactions' | 'analytics' | 'promotions' | 'messages' | 'broadcast'>('overview');
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [editingPromo, setEditingPromo] = useState<any>(null);
   const [promoFormData, setPromoFormData] = useState({ title: '', description: '', image_url: '' });
@@ -205,6 +205,42 @@ const Admin = () => {
     ];
   };
 
+  const getHourlyTrendData = () => {
+    // Group bets and transactions by hour for the last 24 hours
+    const hourlyStats: { [key: number]: { hour: string; bets: number; amount: number } } = {};
+
+    // Initialize hours
+    for (let i = 23; i >= 0; i--) {
+      const now = new Date();
+      const hour = new Date(now.getTime() - i * 60 * 60 * 1000);
+      const hourKey = hour.getHours();
+      const hourLabel = hour.toLocaleString('en-US', { hour: 'numeric', hour12: true });
+      hourlyStats[hourKey] = { hour: hourLabel, bets: 0, amount: 0 };
+    }
+
+    // Aggregate bets by hour
+    bets.forEach(b => {
+      const betHour = new Date(b.created_at).getHours();
+      if (hourlyStats[betHour]) {
+        hourlyStats[betHour].bets += 1;
+      }
+    });
+
+    // Aggregate transactions by hour
+    transactions.forEach(t => {
+      const txnHour = new Date(t.created_at).getHours();
+      if (hourlyStats[txnHour]) {
+        hourlyStats[txnHour].amount += t.amount || 0;
+      }
+    });
+
+    return Object.values(hourlyStats).sort((a, b) => {
+      const aHour = parseInt(a.hour.split(':')[0]);
+      const bHour = parseInt(b.hour.split(':')[0]);
+      return aHour - bHour;
+    });
+  };
+
   if (loading || checking) {
     return (
       <div className="container py-8 space-y-4">
@@ -225,7 +261,18 @@ const Admin = () => {
   return (
     <div className="container py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold">Admin Dashboard</h1>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/account')}
+            className="h-10 w-10"
+            title="Back to account dashboard"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="font-display text-3xl font-bold">Admin Dashboard</h1>
+        </div>
         <div className="text-sm text-muted-foreground">
           Updated: {new Date().toLocaleString()}
         </div>
@@ -234,23 +281,24 @@ const Admin = () => {
       {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto border-b border-border pb-0">
         {[
-          { id: 'overview', label: 'Overview', icon: '📊' },
-          { id: 'users', label: 'Users', icon: '👥' },
-          { id: 'bets', label: 'Bets', icon: '🎯' },
-          { id: 'transactions', label: 'Transactions', icon: '💰' },
-          { id: 'promotions', label: 'Promotions', icon: '🎁' },
-          { id: 'analytics', label: 'Analytics', icon: '📈' },
+          { id: 'overview', label: 'Overview', Icon: BarChart3 },
+          { id: 'users', label: 'Users', Icon: Users },
+          { id: 'bets', label: 'Bets', Icon: Trophy },
+          { id: 'transactions', label: 'Transactions', Icon: DollarSign },
+          { id: 'promotions', label: 'Promotions', Icon: Gift },
+          { id: 'analytics', label: 'Analytics', Icon: TrendingUp },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-4 py-3 font-medium text-sm border-b-2 transition ${
+            className={`px-4 py-3 font-medium text-sm border-b-2 transition flex items-center gap-2 ${
               activeTab === tab.id
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            <span className="mr-2">{tab.icon}</span>{tab.label}
+            <tab.Icon className="h-4 w-4" />
+            {tab.label}
           </button>
         ))}
       </div>
@@ -590,6 +638,26 @@ const Admin = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* Real-time Hourly Trend Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Real-time Hourly Trends (Last 24 Hours)</CardTitle>
+            </CardHeader>
+            <CardContent className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={getHourlyTrendData()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="hour" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="bets" stroke="#3b82f6" strokeWidth={2} name="Bets" />
+                  <Line type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2} name="Revenue (₦)" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
           {/* Daily Stats Chart */}
           {chartData.length > 0 && (
