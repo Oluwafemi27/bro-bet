@@ -21,9 +21,15 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const email = 'oluwafemiod7@gmail.com';
-    const password = 'Sijuade27#';
-    const fullName = 'Oluwafemi';
+    // Get credentials from request body or environment
+    const body = await req.json().catch(() => ({}));
+    const email = body.email || Deno.env.get('ADMIN_EMAIL');
+    const password = body.password || Deno.env.get('ADMIN_PASSWORD');
+    const fullName = body.fullName || Deno.env.get('ADMIN_NAME') || 'Admin';
+
+    if (!email || !password) {
+      throw new Error('Missing admin email and password. Provide via request body or environment variables.');
+    }
 
     let userId: string | undefined;
 
