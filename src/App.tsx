@@ -30,21 +30,62 @@ import NotFound from "./pages/NotFound";
 
 // Admin Dashboard & Modules
 import Dashboard from "./pages/admin/dashboard/Dashboard";
+
+// User Management
 import UserList from "./pages/admin/users/UserList";
 import KycManagement from "./pages/admin/users/KycManagement";
 import BannedUsers from "./pages/admin/users/BannedUsers";
 import UserSegments from "./pages/admin/users/UserSegments";
+
+// Sportsbook
 import SportsModule from "./pages/admin/sportsbook/SportsModule";
+import Leagues from "./pages/admin/sportsbook/Leagues";
+import Matches from "./pages/admin/sportsbook/Matches";
+import Odds from "./pages/admin/sportsbook/Odds";
+import Markets from "./pages/admin/sportsbook/Markets";
+
+// Bets
 import BetsAll from "./pages/admin/bets/BetsAll";
+
+// Finance
 import Deposits from "./pages/admin/finance/Deposits";
 import Withdrawals from "./pages/admin/finance/Withdrawals";
+import Transactions from "./pages/admin/finance/Transactions";
+import Wallets from "./pages/admin/finance/Wallets";
+import Reconciliation from "./pages/admin/finance/Reconciliation";
+
+// Bonuses
 import PromotionsModule from "./pages/admin/bonuses/PromotionsModule";
+import BonusRules from "./pages/admin/bonuses/BonusRules";
+import Freebets from "./pages/admin/bonuses/Freebets";
+import Campaigns from "./pages/admin/bonuses/Campaigns";
+
+// Risk
 import RiskAlerts from "./pages/admin/risk/RiskAlerts";
-import SupportTickets from "./pages/admin/support/SupportTickets";
+import RiskRules from "./pages/admin/risk/RiskRules";
+import FraudDetection from "./pages/admin/risk/FraudDetection";
+import BettingLimits from "./pages/admin/risk/BettingLimits";
+
+// CMS
+import Banners from "./pages/admin/cms/Banners";
+import CMSPages from "./pages/admin/cms/Pages";
+import Notifications from "./pages/admin/cms/Notifications";
+
+// Reports
 import GGRReport from "./pages/admin/reports/GGRReport";
+
+// Settings
 import GeneralSettings from "./pages/admin/settings/GeneralSettings";
+
+// Casino
 import CasinoGames from "./pages/admin/casino/CasinoGames";
+import Providers from "./pages/admin/casino/Providers";
+
+// Compliance
 import ResponsibleGaming from "./pages/admin/compliance/ResponsibleGaming";
+
+// Support
+import SupportTickets from "./pages/admin/support/SupportTickets";
 
 const queryClient = new QueryClient();
 
@@ -135,7 +176,7 @@ const App = () => (
                   path="/admin/sportsbook/leagues"
                   element={
                     <AdminPanel>
-                      <SportsModule />
+                      <Leagues />
                     </AdminPanel>
                   }
                 />
@@ -143,7 +184,7 @@ const App = () => (
                   path="/admin/sportsbook/matches"
                   element={
                     <AdminPanel>
-                      <SportsModule />
+                      <Matches />
                     </AdminPanel>
                   }
                 />
@@ -151,7 +192,7 @@ const App = () => (
                   path="/admin/sportsbook/odds"
                   element={
                     <AdminPanel>
-                      <SportsModule />
+                      <Odds />
                     </AdminPanel>
                   }
                 />
@@ -159,7 +200,7 @@ const App = () => (
                   path="/admin/sportsbook/markets"
                   element={
                     <AdminPanel>
-                      <SportsModule />
+                      <Markets />
                     </AdminPanel>
                   }
                 />
@@ -227,7 +268,7 @@ const App = () => (
                   path="/admin/finance/transactions"
                   element={
                     <AdminPanel>
-                      <BetsAll />
+                      <Transactions />
                     </AdminPanel>
                   }
                 />
@@ -235,7 +276,7 @@ const App = () => (
                   path="/admin/finance/wallets"
                   element={
                     <AdminPanel>
-                      <BetsAll />
+                      <Wallets />
                     </AdminPanel>
                   }
                 />
@@ -243,7 +284,7 @@ const App = () => (
                   path="/admin/finance/reconciliation"
                   element={
                     <AdminPanel>
-                      <BetsAll />
+                      <Reconciliation />
                     </AdminPanel>
                   }
                 />
@@ -321,7 +362,7 @@ const App = () => (
                   path="/admin/risk/rules"
                   element={
                     <AdminPanel>
-                      <RiskAlerts />
+                      <RiskRules />
                     </AdminPanel>
                   }
                 />
@@ -329,7 +370,7 @@ const App = () => (
                   path="/admin/risk/fraud"
                   element={
                     <AdminPanel>
-                      <RiskAlerts />
+                      <FraudDetection />
                     </AdminPanel>
                   }
                 />
@@ -337,7 +378,7 @@ const App = () => (
                   path="/admin/risk/limits"
                   element={
                     <AdminPanel>
-                      <RiskAlerts />
+                      <BettingLimits />
                     </AdminPanel>
                   }
                 />
@@ -347,7 +388,7 @@ const App = () => (
                   path="/admin/cms/banners"
                   element={
                     <AdminPanel>
-                      <BetsAll />
+                      <Banners />
                     </AdminPanel>
                   }
                 />
@@ -355,7 +396,7 @@ const App = () => (
                   path="/admin/cms/pages"
                   element={
                     <AdminPanel>
-                      <BetsAll />
+                      <CMSPages />
                     </AdminPanel>
                   }
                 />
@@ -363,7 +404,7 @@ const App = () => (
                   path="/admin/cms/notifications"
                   element={
                     <AdminPanel>
-                      <BetsAll />
+                      <Notifications />
                     </AdminPanel>
                   }
                 />
