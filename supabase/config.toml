@@ -15,5 +15,8 @@ verify_jwt = false
 [functions.get-streams]
 verify_jwt = false
 
+[functions.odds-api]
+verify_jwt = false
+
 [functions.setup-admin]
 verify_jwt = false

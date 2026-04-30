@@ -95,7 +95,26 @@ const Account = () => {
     }
   };
 
-  if (loading || !profile) {
+  // Show loading while auth is initializing
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container space-y-4 py-4">
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+        </div>
+      </Layout>
+    );
+  }
+
+  // If auth is done but no user, redirect will happen in the effect above
+  if (!user) {
+    return null;
+  }
+
+  // If we have a user but still loading profile, show placeholder
+  if (!profile) {
     return (
       <Layout>
         <div className="container space-y-4 py-4">
