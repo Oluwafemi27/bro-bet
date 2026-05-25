@@ -79,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const isMountedRef = useRef(true);
   const pendingProfileFetchRef = useRef<Promise<void> | null>(null);
+  const initializedRef = useRef(false);
 
   const fetchProfileAndRole = async (userId: string) => {
     // Prevent multiple concurrent fetches
@@ -88,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     pendingProfileFetchRef.current = (async () => {
       try {
+        console.log("Fetching profile and role for:", userId);
         const [profileData, roleResult] = await Promise.all([
           fetchProfileWithTimeout(userId, 5000),
           supabase.rpc("has_role", { _user_id: userId, _role: "admin" })
@@ -110,40 +112,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Set up auth state listener first, then use getSession to get current state
+    // Set a safety timeout to ensure loading is eventually set to false
+    const safetyTimeoutId = setTimeout(() => {
+      if (isMountedRef.current && loading) {
+        console.warn("Auth initialization timed out, forcing loading to false");
+        setLoading(false);
+      }
+    }, 10000);
+
+    // Set up auth state listener first
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event, currentSession) => {
         if (!isMountedRef.current) return;
 
-        console.log("Auth state change:", event, session?.user?.id);
+        console.log("Auth state change:", event, currentSession?.user?.id);
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
 
-        if (session?.user) {
-          await fetchProfileAndRole(session.user.id);
+        if (currentSession?.user) {
+          await fetchProfileAndRole(currentSession.user.id);
         } else {
           setProfile(null);
           setIsAdmin(false);
         }
         
+        // We set loading false on these key events
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
           setLoading(false);
+          initializedRef.current = true;
         }
       }
     );
 
     // Initialize auth by getting the current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (!isMountedRef.current) return;
 
-      setSession(session);
-      setUser(session?.user ?? null);
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
 
-      if (session?.user) {
-        fetchProfileAndRole(session.user.id).finally(() => {
+      if (initialSession?.user) {
+        fetchProfileAndRole(initialSession.user.id).finally(() => {
           if (isMountedRef.current) {
             setLoading(false);
+            initializedRef.current = true;
           }
         });
       } else {
@@ -151,6 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAdmin(false);
         if (isMountedRef.current) {
           setLoading(false);
+          initializedRef.current = true;
         }
       }
     }).catch((error) => {
@@ -161,11 +175,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(null);
         setIsAdmin(false);
         setLoading(false);
+        initializedRef.current = true;
       }
     });
 
     return () => {
       isMountedRef.current = false;
+      clearTimeout(safetyTimeoutId);
       if (authSubscription) {
         authSubscription.unsubscribe();
       }
