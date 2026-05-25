@@ -10,13 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Account = () => {
-  const { user, profile, loading, signOut, refreshProfile } = useAuth();
+  const { user, profile, loading, isAdmin, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bets, setBets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isDark, setIsDark] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login");
@@ -24,42 +23,6 @@ const Account = () => {
 
   useEffect(() => {
     if (user) {
-      // Check if user is admin using RPC, with fallback to user_roles table check
-      const checkAdminStatus = async () => {
-        try {
-          // Try RPC function first
-          const { data, error } = await supabase.rpc("has_role", {
-            _user_id: user.id,
-            _role: "admin"
-          });
-
-          if (error) {
-            console.warn("RPC has_role error (expected if SQL not run yet):", error.message);
-            // Fallback: check user_roles table directly
-            const { data: roleData, error: roleError } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", user.id)
-              .eq("role", "admin")
-              .limit(1);
-
-            if (roleError) {
-              console.error("Error checking user_roles table:", roleError);
-              setIsAdmin(false);
-            } else {
-              setIsAdmin((roleData && roleData.length > 0) || false);
-            }
-          } else {
-            setIsAdmin(!!data);
-          }
-        } catch (err) {
-          console.error("Unexpected error in admin check:", err);
-          setIsAdmin(false);
-        }
-      };
-
-      checkAdminStatus();
-
       // Load user data
       supabase.from("bets")
         .select("*")
@@ -220,3 +183,9 @@ const Account = () => {
 };
 
 export default Account;
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'

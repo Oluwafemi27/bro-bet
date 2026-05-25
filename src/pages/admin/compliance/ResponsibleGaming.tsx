@@ -25,20 +25,12 @@ const ResponsibleGaming = () => {
     <div className="space-y-6">
       <h2 className="font-display text-2xl font-bold">Responsible Gaming</h2>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-3xl font-bold">{exclusions.length}</p>
               <p className="text-sm text-muted-foreground">Active Exclusions</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-amber-600">12</p>
-              <p className="text-sm text-muted-foreground">Pending KYC</p>
             </div>
           </CardContent>
         </Card>
@@ -77,3 +69,9 @@ const ResponsibleGaming = () => {
 };
 
 export default ResponsibleGaming;
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'

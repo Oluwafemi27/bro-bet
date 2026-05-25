@@ -46,7 +46,6 @@ CREATE TABLE public.profiles (
   phone         text,
   balance       numeric NOT NULL DEFAULT 0,             -- real money balance
   bonus_balance numeric NOT NULL DEFAULT 500,           -- ₦500 signup bonus
-  kyc_verified  boolean NOT NULL DEFAULT false,
   referral_code text DEFAULT upper(substr(md5(random()::text), 1, 6)),
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now()
@@ -384,3 +383,9 @@ events.filter(e => e.startTimestamp > Date.now() - liveWindow);
 ```
 
 This guarantees finished games never appear on any page of the app.
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'

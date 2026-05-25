@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -25,6 +25,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface NavItem {
   id: string;
@@ -48,7 +49,6 @@ const adminNavItems: NavItem[] = [
     path: "/admin/users",
     children: [
       { id: "users-list", label: "User List", icon: <Users className="h-4 w-4" />, path: "/admin/users/list" },
-      { id: "users-kyc", label: "KYC & Verification", icon: <Shield className="h-4 w-4" />, path: "/admin/users/kyc" },
       { id: "users-banned", label: "Banned Users", icon: <AlertTriangle className="h-4 w-4" />, path: "/admin/users/banned" },
       { id: "users-segments", label: "User Segments", icon: <Users2 className="h-4 w-4" />, path: "/admin/users/segments" },
     ],
@@ -198,16 +198,26 @@ const adminNavItems: NavItem[] = [
   },
 ];
 
-interface AdminLayoutProps {
-  children: React.ReactNode;
-}
-
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+export const AdminLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set(["dashboard"]));
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, isAdmin, loading, signOut } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/login");
+      return;
+    }
+
+    if (!loading && user && !isAdmin) {
+      toast({ title: "Access denied - Admin only", variant: "destructive" });
+      navigate("/");
+      return;
+    }
+  }, [user, isAdmin, loading, navigate, toast]);
 
   const toggleModule = (moduleId: string) => {
     const newExpanded = new Set(expandedModules);
@@ -224,13 +234,35 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const getPageTitle = () => {
     const currentItem = adminNavItems.find(item => isModuleActive(item.path));
-    return currentItem?.label || "Dashboard";
+    if (!currentItem) return "Dashboard";
+    
+    if (currentItem.children) {
+      const subItem = currentItem.children.find(sub => sub.path === location.pathname);
+      if (subItem) return subItem.label;
+    }
+    
+    return currentItem.label;
   };
 
   const handleLogout = async () => {
-    await logout();
+    await signOut();
     navigate("/login");
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-muted-foreground animate-pulse">Verifying permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -276,7 +308,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               onClick={() => navigate("/")}
             >
               <Home className="h-5 w-5" />
-              {sidebarOpen && <span className="font-medium">Home</span>}
+              {sidebarOpen && <span className="font-medium">Back to Site</span>}
             </Button>
 
             {/* Divider */}
@@ -285,10 +317,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             {adminNavItems.map((item) => (
               <div key={item.id}>
                 <Button
-                  variant={isModuleActive(item.path) ? "default" : "ghost"}
+                  variant={isModuleActive(item.path) ? "secondary" : "ghost"}
                   size="sm"
                   className={`w-full justify-between gap-3 h-10 font-medium ${
-                    isModuleActive(item.path) ? "bg-primary/20" : "hover:bg-primary/10"
+                    isModuleActive(item.path) ? "bg-primary/10 text-primary" : "hover:bg-primary/5"
                   }`}
                   onClick={() => {
                     if (item.children) {
@@ -322,7 +354,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                           variant={isActive(subItem.path) ? "default" : "ghost"}
                           size="sm"
                           className={`w-full justify-start gap-2 text-xs h-9 ${
-                            isActive(subItem.path) ? "bg-primary/20" : "hover:bg-primary/10"
+                            isActive(subItem.path) ? "bg-primary" : "hover:bg-primary/10"
                           }`}
                           onClick={() => navigate(subItem.path)}
                         >
@@ -379,22 +411,30 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               })}
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 hover:bg-primary/10"
-          >
-            <Bell className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 hover:bg-primary/10"
+            >
+              <Bell className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
         {/* Page Content */}
         <div className="flex-1 overflow-auto">
           <div className="p-8">
-            {children}
+            <Outlet />
           </div>
         </div>
       </div>
     </div>
   );
 };
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,20 +20,19 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import Account from "./pages/Account";
 import Promotions from "./pages/Promotions";
-import Admin from "./pages/Admin";
-import AdminPanel from "./pages/AdminPanel";
 import MyBets from "./pages/MyBets";
 import BetHistory from "./pages/BetHistory";
 import Setup from "./pages/Setup";
 import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 
+import { AdminLayout } from "./components/admin/AdminLayout";
+
 // Admin Dashboard & Modules
 import Dashboard from "./pages/admin/dashboard/Dashboard";
 
 // User Management
 import UserList from "./pages/admin/users/UserList";
-import KycManagement from "./pages/admin/users/KycManagement";
 import BannedUsers from "./pages/admin/users/BannedUsers";
 import UserSegments from "./pages/admin/users/UserSegments";
 
@@ -99,6 +98,7 @@ const App = () => (
           <PlacedBetsProvider>
             <BetSlipProvider>
               <Routes>
+                {/* Main Website Routes */}
                 <Route path="/" element={<Index />} />
                 <Route path="/sports" element={<Sports />} />
                 <Route path="/live" element={<Live />} />
@@ -113,455 +113,94 @@ const App = () => (
                 <Route path="/account" element={<Account />} />
                 <Route path="/dashboard" element={<Account />} />
                 <Route path="/promotions" element={<Promotions />} />
-                <Route path="/admin" element={<Admin />} />
                 <Route path="/setup" element={<Setup />} />
                 <Route path="/debug" element={<Debug />} />
                 <Route path="/my-bets" element={<MyBets />} />
                 <Route path="/bet-history" element={<BetHistory />} />
 
-                {/* Admin Panel Routes */}
-                <Route
-                  path="/admin/dashboard"
-                  element={
-                    <AdminPanel>
-                      <Dashboard />
-                    </AdminPanel>
-                  }
-                />
+                {/* Legacy Admin Redirect */}
+                <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
 
-                {/* User Management */}
-                <Route
-                  path="/admin/users/list"
-                  element={
-                    <AdminPanel>
-                      <UserList />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/users/kyc"
-                  element={
-                    <AdminPanel>
-                      <KycManagement />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/users/banned"
-                  element={
-                    <AdminPanel>
-                      <BannedUsers />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/users/segments"
-                  element={
-                    <AdminPanel>
-                      <UserSegments />
-                    </AdminPanel>
-                  }
-                />
+                {/* Unified Admin Panel Routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route path="dashboard" element={<Dashboard />} />
+                  
+                  {/* User Management */}
+                  <Route path="users/list" element={<UserList />} />
+                  <Route path="users/banned" element={<BannedUsers />} />
+                  <Route path="users/segments" element={<UserSegments />} />
 
-                {/* Sportsbook Management */}
-                <Route
-                  path="/admin/sportsbook/sports"
-                  element={
-                    <AdminPanel>
-                      <SportsModule />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/sportsbook/leagues"
-                  element={
-                    <AdminPanel>
-                      <Leagues />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/sportsbook/matches"
-                  element={
-                    <AdminPanel>
-                      <Matches />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/sportsbook/odds"
-                  element={
-                    <AdminPanel>
-                      <Odds />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/sportsbook/markets"
-                  element={
-                    <AdminPanel>
-                      <Markets />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Sportsbook Management */}
+                  <Route path="sportsbook/sports" element={<SportsModule />} />
+                  <Route path="sportsbook/leagues" element={<Leagues />} />
+                  <Route path="sportsbook/matches" element={<Matches />} />
+                  <Route path="sportsbook/odds" element={<Odds />} />
+                  <Route path="sportsbook/markets" element={<Markets />} />
 
-                {/* Bet Management */}
-                <Route
-                  path="/admin/bets/all"
-                  element={
-                    <AdminPanel>
-                      <BetsAll />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/bets/live"
-                  element={
-                    <AdminPanel>
-                      <BetsAll />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/bets/settled"
-                  element={
-                    <AdminPanel>
-                      <BetsAll />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/bets/voided"
-                  element={
-                    <AdminPanel>
-                      <BetsAll />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/bets/liability"
-                  element={
-                    <AdminPanel>
-                      <BetsAll />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Bet Management */}
+                  <Route path="bets/all" element={<BetsAll />} />
+                  <Route path="bets/live" element={<BetsAll />} />
+                  <Route path="bets/settled" element={<BetsAll />} />
+                  <Route path="bets/voided" element={<BetsAll />} />
+                  <Route path="bets/liability" element={<BetsAll />} />
 
-                {/* Finance Management */}
-                <Route
-                  path="/admin/finance/deposits"
-                  element={
-                    <AdminPanel>
-                      <Deposits />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/finance/withdrawals"
-                  element={
-                    <AdminPanel>
-                      <Withdrawals />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/finance/transactions"
-                  element={
-                    <AdminPanel>
-                      <Transactions />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/finance/wallets"
-                  element={
-                    <AdminPanel>
-                      <Wallets />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/finance/reconciliation"
-                  element={
-                    <AdminPanel>
-                      <Reconciliation />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Finance Management */}
+                  <Route path="finance/deposits" element={<Deposits />} />
+                  <Route path="finance/withdrawals" element={<Withdrawals />} />
+                  <Route path="finance/transactions" element={<Transactions />} />
+                  <Route path="finance/wallets" element={<Wallets />} />
+                  <Route path="finance/reconciliation" element={<Reconciliation />} />
 
-                {/* Casino Management */}
-                <Route
-                  path="/admin/casino/providers"
-                  element={
-                    <AdminPanel>
-                      <CasinoGames />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/casino/games"
-                  element={
-                    <AdminPanel>
-                      <CasinoGames />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/casino/rounds"
-                  element={
-                    <AdminPanel>
-                      <CasinoGames />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Casino Management */}
+                  <Route path="casino/providers" element={<CasinoGames />} />
+                  <Route path="casino/games" element={<CasinoGames />} />
+                  <Route path="casino/rounds" element={<CasinoGames />} />
 
-                {/* Bonuses & Promotions */}
-                <Route
-                  path="/admin/bonuses/promotions"
-                  element={
-                    <AdminPanel>
-                      <PromotionsModule />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/bonuses/rules"
-                  element={
-                    <AdminPanel>
-                      <PromotionsModule />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/bonuses/freebets"
-                  element={
-                    <AdminPanel>
-                      <PromotionsModule />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/bonuses/campaigns"
-                  element={
-                    <AdminPanel>
-                      <PromotionsModule />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Bonuses & Promotions */}
+                  <Route path="bonuses/promotions" element={<PromotionsModule />} />
+                  <Route path="bonuses/rules" element={<PromotionsModule />} />
+                  <Route path="bonuses/freebets" element={<PromotionsModule />} />
+                  <Route path="bonuses/campaigns" element={<PromotionsModule />} />
 
-                {/* Risk & Fraud */}
-                <Route
-                  path="/admin/risk/alerts"
-                  element={
-                    <AdminPanel>
-                      <RiskAlerts />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/risk/rules"
-                  element={
-                    <AdminPanel>
-                      <RiskRules />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/risk/fraud"
-                  element={
-                    <AdminPanel>
-                      <FraudDetection />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/risk/limits"
-                  element={
-                    <AdminPanel>
-                      <BettingLimits />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Risk & Fraud */}
+                  <Route path="risk/alerts" element={<RiskAlerts />} />
+                  <Route path="risk/rules" element={<RiskRules />} />
+                  <Route path="risk/fraud" element={<FraudDetection />} />
+                  <Route path="risk/limits" element={<BettingLimits />} />
 
-                {/* Content Management */}
-                <Route
-                  path="/admin/cms/banners"
-                  element={
-                    <AdminPanel>
-                      <Banners />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/cms/pages"
-                  element={
-                    <AdminPanel>
-                      <CMSPages />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/cms/notifications"
-                  element={
-                    <AdminPanel>
-                      <Notifications />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Content Management */}
+                  <Route path="cms/banners" element={<Banners />} />
+                  <Route path="cms/pages" element={<CMSPages />} />
+                  <Route path="cms/notifications" element={<Notifications />} />
 
-                {/* Reports & Analytics */}
-                <Route
-                  path="/admin/reports/ggr"
-                  element={
-                    <AdminPanel>
-                      <GGRReport />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/reports/users"
-                  element={
-                    <AdminPanel>
-                      <GGRReport />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/reports/sports"
-                  element={
-                    <AdminPanel>
-                      <GGRReport />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/reports/agents"
-                  element={
-                    <AdminPanel>
-                      <GGRReport />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Reports & Analytics */}
+                  <Route path="reports/ggr" element={<GGRReport />} />
+                  <Route path="reports/users" element={<GGRReport />} />
+                  <Route path="reports/sports" element={<GGRReport />} />
+                  <Route path="reports/agents" element={<GGRReport />} />
 
-                {/* Agents & Affiliates */}
-                <Route
-                  path="/admin/agents/list"
-                  element={
-                    <AdminPanel>
-                      <UserList />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/agents/commissions"
-                  element={
-                    <AdminPanel>
-                      <UserList />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/agents/players"
-                  element={
-                    <AdminPanel>
-                      <UserList />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Agents & Affiliates */}
+                  <Route path="agents/list" element={<UserList />} />
+                  <Route path="agents/commissions" element={<UserList />} />
+                  <Route path="agents/players" element={<UserList />} />
 
-                {/* Settings */}
-                <Route
-                  path="/admin/settings/general"
-                  element={
-                    <AdminPanel>
-                      <GeneralSettings />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/settings/limits"
-                  element={
-                    <AdminPanel>
-                      <GeneralSettings />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/settings/integrations"
-                  element={
-                    <AdminPanel>
-                      <GeneralSettings />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/settings/staff"
-                  element={
-                    <AdminPanel>
-                      <GeneralSettings />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/settings/logs"
-                  element={
-                    <AdminPanel>
-                      <GeneralSettings />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Settings */}
+                  <Route path="settings/general" element={<GeneralSettings />} />
+                  <Route path="settings/limits" element={<GeneralSettings />} />
+                  <Route path="settings/integrations" element={<GeneralSettings />} />
+                  <Route path="settings/staff" element={<GeneralSettings />} />
+                  <Route path="settings/logs" element={<GeneralSettings />} />
 
-                {/* Compliance */}
-                <Route
-                  path="/admin/compliance/logs"
-                  element={
-                    <AdminPanel>
-                      <ResponsibleGaming />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/compliance/rg"
-                  element={
-                    <AdminPanel>
-                      <ResponsibleGaming />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/compliance/exclusions"
-                  element={
-                    <AdminPanel>
-                      <ResponsibleGaming />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Compliance */}
+                  <Route path="compliance/logs" element={<ResponsibleGaming />} />
+                  <Route path="compliance/rg" element={<ResponsibleGaming />} />
+                  <Route path="compliance/exclusions" element={<ResponsibleGaming />} />
 
-                {/* Support */}
-                <Route
-                  path="/admin/support/tickets"
-                  element={
-                    <AdminPanel>
-                      <SupportTickets />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/support/chat"
-                  element={
-                    <AdminPanel>
-                      <SupportTickets />
-                    </AdminPanel>
-                  }
-                />
-                <Route
-                  path="/admin/support/announcements"
-                  element={
-                    <AdminPanel>
-                      <SupportTickets />
-                    </AdminPanel>
-                  }
-                />
+                  {/* Support */}
+                  <Route path="support/tickets" element={<SupportTickets />} />
+                  <Route path="support/chat" element={<SupportTickets />} />
+                  <Route path="support/announcements" element={<SupportTickets />} />
+                </Route>
 
                 <Route path="*" element={<NotFound />} />
               </Routes>
@@ -574,3 +213,15 @@ const App = () => (
 );
 
 export default App;
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
