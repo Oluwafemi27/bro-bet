@@ -1,15 +1,16 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Wallet, Search, Clock } from "lucide-react";
+import { Wallet, Search, Clock, Shield } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { usePlacedBets } from "@/contexts/PlacedBetsContext";
 
 const Header = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const { currentBets } = usePlacedBets();
   const [showSearch, setShowSearch] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -31,6 +32,18 @@ const Header = () => {
           <button onClick={() => setShowSearch(!showSearch)} className="p-2 text-muted-foreground hover:text-foreground">
             <Search className="h-5 w-5" />
           </button>
+
+          {isAdmin && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate("/admin")}
+              className="hidden md:flex items-center gap-2 bg-amber-600/10 text-amber-600 hover:bg-amber-600 hover:text-white border border-amber-600/20"
+            >
+              <Shield className="h-4 w-4" />
+              Admin
+            </Button>
+          )}
 
           {user && profile ? (
             <>
