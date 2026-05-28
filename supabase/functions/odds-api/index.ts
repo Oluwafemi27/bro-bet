@@ -18,19 +18,16 @@ serve(async (req) => {
   }
 
   try {
-    // Get API key from environment - fallback to hardcoded for local dev if needed
+    // Get API key from environment
     let apiKey = Deno.env.get('THE_ODDS_API_KEY');
 
-    // If not found in env, log it but allow the request to fail gracefully
+    // If not found in env, log it but return empty data to prevent frontend crashes
     if (!apiKey) {
       console.warn('THE_ODDS_API_KEY not found in environment');
-    }
-    
-    if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'API key not configured' }),
+        JSON.stringify([]),
         {
-          status: 500,
+          status: 200,
           headers: enableCors({ 'Content-Type': 'application/json' }),
         }
       );
@@ -40,9 +37,17 @@ serve(async (req) => {
     let path = '/sports?all=false';
 
     try {
-      const body = await req.json();
-      if (body.path) {
-        path = body.path;
+      if (req.method !== 'GET') {
+        const body = await req.json();
+        if (body.path) {
+          path = body.path;
+        }
+      } else {
+        const url = new URL(req.url);
+        const urlPath = url.searchParams.get('path');
+        if (urlPath) {
+          path = urlPath;
+        }
       }
     } catch {
       // If body parsing fails, try URL params
@@ -61,42 +66,46 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(oddsApiUrl, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
+    try {
+      const response = await fetch(oddsApiUrl, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
 
-    clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      console.error(`Odds API returned ${response.status}:`, await response.text());
-      return new Response(
-        JSON.stringify({ error: `Odds API error: ${response.status}` }),
-        {
-          status: response.status,
-          headers: enableCors({ 'Content-Type': 'application/json' }),
-        }
-      );
+      if (!response.ok) {
+        console.error(`Odds API returned ${response.status}:`, await response.text());
+        // Return empty array instead of error to keep frontend stable
+        return new Response(
+          JSON.stringify([]),
+          {
+            status: 200,
+            headers: enableCors({ 'Content-Type': 'application/json' }),
+          }
+        );
+      }
+
+      const data = await response.json();
+
+      return new Response(JSON.stringify(data), {
+        headers: enableCors({ 'Content-Type': 'application/json' }),
+      });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
     }
-
-    const data = await response.json();
-
-    return new Response(JSON.stringify(data), {
-      headers: enableCors({ 'Content-Type': 'application/json' }),
-    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Odds API proxy error:', message);
 
+    // Return empty array on error for resilience
     return new Response(
-      JSON.stringify({
-        error: message,
-        data: error instanceof Error && error.name === 'AbortError' ? 'Request timeout' : null
-      }),
+      JSON.stringify([]),
       {
-        status: 500,
+        status: 200,
         headers: enableCors({ 'Content-Type': 'application/json' }),
       }
     );

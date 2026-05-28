@@ -30,6 +30,8 @@ const createMinimalProfile = (userId: string): Profile => ({
   created_at: new Date().toISOString(),
   phone: null,
   updated_at: new Date().toISOString(),
+  is_admin: false,
+  is_staff: false,
 });
 
 // Fetch profile with timeout
@@ -97,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (isMountedRef.current) {
           setProfile(profileData);
-          setIsAdmin(!!roleResult.data);
+          setIsAdmin(!!roleResult.data || !!profileData?.is_admin);
         }
       } catch (error) {
         console.error("Error fetching profile/role:", error);
@@ -118,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn("Auth initialization timed out, forcing loading to false");
         setLoading(false);
       }
-    }, 10000);
+    }, 2000);
 
     // Set up auth state listener first
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(

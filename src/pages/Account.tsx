@@ -10,12 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Account = () => {
-  const { user, profile, loading, isAdmin, signOut, refreshProfile } = useAuth();
+  const { user, profile, loading, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [bets, setBets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isDark, setIsDark] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login");
@@ -23,26 +24,28 @@ const Account = () => {
 
   useEffect(() => {
     if (user) {
+      setIsDataLoading(true);
       // Load user data
-      supabase.from("bets")
+      const fetchBets = supabase.from("bets")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(10)
-        .then(({ data, error }) => {
-          if (error) console.error("Error fetching bets:", error);
-          setBets(data || []);
-        });
+        .limit(10);
 
-      supabase.from("transactions")
+      const fetchTransactions = supabase.from("transactions")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(10)
-        .then(({ data, error }) => {
-          if (error) console.error("Error fetching transactions:", error);
-          setTransactions(data || []);
-        });
+        .limit(10);
+
+      Promise.all([fetchBets, fetchTransactions]).then(([betsRes, transRes]) => {
+        if (betsRes.error) console.error("Error fetching bets:", betsRes.error);
+        if (transRes.error) console.error("Error fetching transactions:", transRes.error);
+        
+        setBets(betsRes.data || []);
+        setTransactions(transRes.data || []);
+        setIsDataLoading(false);
+      });
     }
   }, [user]);
 
@@ -58,35 +61,9 @@ const Account = () => {
     }
   };
 
-  // Show loading while auth is initializing
-  if (loading) {
-    return (
-      <Layout>
-        <div className="container space-y-4 py-4">
-          <Skeleton className="h-32 rounded-xl" />
-          <Skeleton className="h-20 rounded-xl" />
-          <Skeleton className="h-20 rounded-xl" />
-        </div>
-      </Layout>
-    );
-  }
-
   // If auth is done but no user, redirect will happen in the effect above
-  if (!user) {
+  if (!loading && !user) {
     return null;
-  }
-
-  // If we have a user but still loading profile, show placeholder
-  if (!profile) {
-    return (
-      <Layout>
-        <div className="container space-y-4 py-4">
-          <Skeleton className="h-32 rounded-xl" />
-          <Skeleton className="h-20 rounded-xl" />
-          <Skeleton className="h-20 rounded-xl" />
-        </div>
-      </Layout>
-    );
   }
 
   return (
@@ -99,12 +76,24 @@ const Account = () => {
               <Wallet className="h-8 w-8 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Main Balance</p>
-                <p className="font-display text-3xl font-bold text-foreground">₦{profile.balance.toLocaleString()}</p>
+                {loading || !profile ? (
+                  <Skeleton className="h-9 w-32 mt-1" />
+                ) : (
+                  <p className="font-display text-3xl font-bold text-foreground">
+                    ₦{profile.balance?.toLocaleString() ?? 0}
+                  </p>
+                )}
               </div>
             </div>
             <div className="mt-3 flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Bonus:</span>
-              <span className="font-semibold text-naija-gold">₦{profile.bonus_balance.toLocaleString()}</span>
+              {loading || !profile ? (
+                <Skeleton className="h-4 w-16" />
+              ) : (
+                <span className="font-semibold text-naija-gold">
+                  ₦{profile.bonus_balance?.toLocaleString() ?? 0}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -126,16 +115,20 @@ const Account = () => {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-xs text-muted-foreground">Your Referral Code</p>
-              <p className="font-display text-lg font-bold text-primary">{profile.referral_code}</p>
+              {loading || !profile ? (
+                <Skeleton className="h-7 w-24 mt-1" />
+              ) : (
+                <p className="font-display text-lg font-bold text-primary">{profile.referral_code}</p>
+              )}
             </div>
-            <Button variant="ghost" size="icon" onClick={copyReferral}>
+            <Button variant="ghost" size="icon" onClick={copyReferral} disabled={loading || !profile}>
               <Copy className="h-4 w-4" />
             </Button>
           </CardContent>
         </Card>
 
         {/* Admin Panel Button */}
-        {isAdmin && (
+        {!loading && isAdmin && (
           <Button className="w-full justify-start gap-2 bg-amber-600 hover:bg-amber-700" onClick={() => navigate("/admin")}>
             <Shield className="h-4 w-4" /> Admin Panel
           </Button>
@@ -145,12 +138,16 @@ const Account = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <History className="h-4 w-4" /> Bet History
+              <History className="h-4 w-4" /> Recent Bets
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {bets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No bets yet</p>
+            {isDataLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))
+            ) : bets.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">No bets yet</p>
             ) : (
               bets.map((bet) => (
                 <div key={bet.id} className="flex items-center justify-between rounded-lg bg-secondary p-3">

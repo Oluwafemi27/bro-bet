@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,30 +16,11 @@ import {
   type StreamTopic,
 } from "@/services/sportsStreamService";
 
-const TOPIC_IDS = liveStreamTopics.map((topic) => topic.id) as StreamTopic[];
-
-const createTopicState = <T,>(initialValue: T): Record<StreamTopic, T> => ({
-  nba: initialValue,
-  soccer: initialValue,
-  boxing: initialValue,
-});
-
 const WatchLive = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTopic, setActiveTopic] = useState<StreamTopic>("nba");
-  const [streamsByTopic, setStreamsByTopic] = useState<Record<StreamTopic, LiveStreamResult[]>>(
-    createTopicState<LiveStreamResult[]>([]),
-  );
-  const [selectedByTopic, setSelectedByTopic] = useState<Record<StreamTopic, LiveStreamResult | null>>(
-    createTopicState<LiveStreamResult | null>(null),
-  );
-  const [loadingByTopic, setLoadingByTopic] = useState<Record<StreamTopic, boolean>>(
-    createTopicState(false),
-  );
-  const [errorByTopic, setErrorByTopic] = useState<Record<StreamTopic, string | null>>(
-    createTopicState<string | null>(null),
-  );
+  const [selectedStreams, setSelectedStreams] = useState<Record<string, LiveStreamResult | null>>({});
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -47,52 +29,31 @@ const WatchLive = () => {
     }
   }, [user, authLoading, navigate]);
 
-  const loadStreams = useCallback(async (topic: StreamTopic) => {
-    setLoadingByTopic((prev) => ({ ...prev, [topic]: true }));
-    setErrorByTopic((prev) => ({ ...prev, [topic]: null }));
+  const { 
+    data: streams = [], 
+    isLoading, 
+    error, 
+    refetch 
+  } = useQuery({
+    queryKey: ["streams", activeTopic],
+    queryFn: () => fetchTopicStreams(activeTopic, 5),
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-    try {
-      const streams = await fetchTopicStreams(topic, 5);
-
-      setStreamsByTopic((prev) => ({
-        ...prev,
-        [topic]: streams,
-      }));
-
-      setSelectedByTopic((prev) => {
-        const currentSelection = prev[topic];
-        const nextSelection = currentSelection && streams.some((stream) => stream.videoId === currentSelection.videoId)
-          ? streams.find((stream) => stream.videoId === currentSelection.videoId) ?? streams[0] ?? null
-          : streams[0] ?? null;
-
-        return {
-          ...prev,
-          [topic]: nextSelection,
-        };
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to load live streams right now.";
-
-      setStreamsByTopic((prev) => ({ ...prev, [topic]: [] }));
-      setSelectedByTopic((prev) => ({ ...prev, [topic]: null }));
-      setErrorByTopic((prev) => ({ ...prev, [topic]: message }));
-    } finally {
-      setLoadingByTopic((prev) => ({ ...prev, [topic]: false }));
-    }
-  }, []);
-
+  // Set initial selection when streams load
   useEffect(() => {
-    TOPIC_IDS.forEach((topic) => {
-      void loadStreams(topic);
-    });
-  }, [loadStreams]);
+    if (streams.length > 0 && !selectedStreams[activeTopic]) {
+      setSelectedStreams(prev => ({
+        ...prev,
+        [activeTopic]: streams[0]
+      }));
+    }
+  }, [streams, activeTopic, selectedStreams]);
 
-  const renderTopicContent = (topic: StreamTopic) => {
-    const streams = streamsByTopic[topic];
-    const selected = selectedByTopic[topic];
-    const isLoading = loadingByTopic[topic];
-    const error = errorByTopic[topic];
+  const selected = selectedStreams[activeTopic] || streams[0] || null;
 
+  const renderTopicContent = () => {
     return (
       <div className="space-y-4">
         <Card className="overflow-hidden">
@@ -148,7 +109,7 @@ const WatchLive = () => {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => void loadStreams(topic)}
+            onClick={() => void refetch()}
             disabled={isLoading}
           >
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
@@ -158,13 +119,15 @@ const WatchLive = () => {
 
         {error ? (
           <Card>
-            <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+            <CardContent className="p-4 text-sm text-destructive">
+              {error instanceof Error ? error.message : "Unable to load live streams right now."}
+            </CardContent>
           </Card>
         ) : null}
 
         {isLoading && streams.length === 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 5 }).map((_, index) => (
+            {Array.from({ length: 3 }).map((_, index) => (
               <Card key={index} className="overflow-hidden">
                 <Skeleton className="aspect-video w-full rounded-none" />
                 <CardContent className="space-y-2 p-4">
@@ -183,7 +146,7 @@ const WatchLive = () => {
                 <button
                   key={stream.videoId}
                   type="button"
-                  onClick={() => setSelectedByTopic((prev) => ({ ...prev, [topic]: stream }))}
+                  onClick={() => setSelectedStreams(prev => ({ ...prev, [activeTopic]: stream }))}
                   className="text-left"
                 >
                   <Card className={`overflow-hidden transition ${isSelected ? "border-primary ring-1 ring-primary" : "hover:border-primary/50"}`}>
@@ -210,7 +173,7 @@ const WatchLive = () => {
               );
             })}
           </div>
-        ) : !error ? (
+        ) : !error && !isLoading ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center gap-3 p-8 text-center">
               <Tv className="h-8 w-8 text-muted-foreground" />
@@ -249,13 +212,13 @@ const WatchLive = () => {
           <div>
             <h1 className="text-xl font-bold">Watch Live</h1>
             <p className="text-sm text-muted-foreground">
-              Browse embeddable YouTube live streams for NBA basketball and boxing.
+              Browse embeddable YouTube live streams for sports events.
             </p>
           </div>
         </div>
 
         <Tabs value={activeTopic} onValueChange={(value) => setActiveTopic(value as StreamTopic)} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             {liveStreamTopics.map((topic) => (
               <TabsTrigger key={topic.id} value={topic.id}>
                 {topic.label}
@@ -264,8 +227,8 @@ const WatchLive = () => {
           </TabsList>
 
           {liveStreamTopics.map((topic) => (
-            <TabsContent key={topic.id} value={topic.id} className="mt-0">
-              {renderTopicContent(topic.id)}
+            <TabsContent key={topic.id} value={topic.id} className="mt-0 focus-visible:outline-none focus-visible:ring-0">
+              {activeTopic === topic.id && renderTopicContent()}
             </TabsContent>
           ))}
         </Tabs>
