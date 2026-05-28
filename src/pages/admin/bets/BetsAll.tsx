@@ -97,18 +97,23 @@ const BetsAll: React.FC = () => {
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="p-3 font-medium">Booking Code</th>
-                  <th className="p-3 font-medium">Stake</th>
+                  <th className="p-3 font-medium hidden sm:table-cell">Stake</th>
                   <th className="p-3 font-medium">Potential Win</th>
                   <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium">Created</th>
+                  <th className="p-3 font-medium hidden md:table-cell">Created</th>
                   <th className="p-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredBets.map((bet) => (
                   <tr key={bet.id} className="border-b border-border/50 hover:bg-secondary/50">
-                    <td className="p-3 font-mono">{bet.booking_code}</td>
-                    <td className="p-3">₦{Number(bet.stake).toFixed(2)}</td>
+                    <td className="p-3 font-mono">
+                      <div>
+                        {bet.booking_code}
+                        <div className="sm:hidden text-xs text-muted-foreground font-normal mt-1">₦{Number(bet.stake).toFixed(2)}</div>
+                      </div>
+                    </td>
+                    <td className="p-3 hidden sm:table-cell">₦{Number(bet.stake).toFixed(2)}</td>
                     <td className="p-3">₦{Number(bet.potential_win).toFixed(2)}</td>
                     <td className="p-3">
                       <span
@@ -123,12 +128,13 @@ const BetsAll: React.FC = () => {
                         {bet.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="p-3 text-xs text-muted-foreground">
+                    <td className="p-3 text-xs text-muted-foreground hidden md:table-cell">
                       {new Date(bet.created_at).toLocaleDateString()}
                     </td>
                     <td className="p-3">
-                      <Button size="sm" variant="outline">
-                        View Details
+                      <Button size="sm" variant="outline" className="text-xs">
+                        <span className="hidden sm:inline">View Details</span>
+                        <span className="sm:hidden">Details</span>
                       </Button>
                     </td>
                   </tr>

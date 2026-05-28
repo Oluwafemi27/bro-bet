@@ -129,8 +129,8 @@ const Deposits: React.FC = () => {
         {/* Filters */}
         <Card className="border border-border/50">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="flex-1 max-w-sm relative">
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <div className="flex-1 w-full md:max-w-sm relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background"
@@ -138,7 +138,7 @@ const Deposits: React.FC = () => {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full md:w-48">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -170,9 +170,9 @@ const Deposits: React.FC = () => {
                   <thead>
                     <tr className="border-b bg-secondary/10">
                       <th className="px-6 py-4 text-left font-semibold">Amount</th>
-                      <th className="px-6 py-4 text-left font-semibold">Reference</th>
+                      <th className="px-6 py-4 text-left font-semibold hidden sm:table-cell">Reference</th>
                       <th className="px-6 py-4 text-left font-semibold">Status</th>
-                      <th className="px-6 py-4 text-left font-semibold">Date</th>
+                      <th className="px-6 py-4 text-left font-semibold hidden lg:table-cell">Date</th>
                       <th className="px-6 py-4 text-left font-semibold">Actions</th>
                     </tr>
                   </thead>
@@ -180,13 +180,18 @@ const Deposits: React.FC = () => {
                     {filteredDeposits.map((deposit) => (
                       <tr key={deposit.id} className="border-b hover:bg-secondary/5 transition-colors">
                         <td className="px-6 py-4 font-bold text-foreground">
-                          ₦{Number(deposit.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          <div>
+                            ₦{Number(deposit.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            <div className="sm:hidden text-[10px] text-muted-foreground font-mono mt-1 uppercase">
+                              {deposit.reference || "N/A"}
+                            </div>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
+                        <td className="px-6 py-4 font-mono text-xs text-muted-foreground hidden sm:table-cell">
                           {deposit.reference || "N/A"}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold border ${
                             deposit.status === "completed" 
                               ? "bg-green-100 text-green-700 border-green-200" 
                               : deposit.status === "pending"
@@ -196,24 +201,25 @@ const Deposits: React.FC = () => {
                             {deposit.status === "pending" && <Clock className="h-3 w-3" />}
                             {deposit.status === "completed" && <CheckCircle className="h-3 w-3" />}
                             {deposit.status === "failed" && <XCircle className="h-3 w-3" />}
-                            {deposit.status.toUpperCase()}
+                            <span className="hidden xs:inline">{deposit.status.toUpperCase()}</span>
+                            <span className="xs:hidden">{deposit.status.charAt(0).toUpperCase()}</span>
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
+                        <td className="px-6 py-4 text-muted-foreground whitespace-nowrap hidden lg:table-cell">
                           {new Date(deposit.created_at).toLocaleString()}
                         </td>
                         <td className="px-6 py-4">
                           {deposit.status === "pending" ? (
                             <div className="flex gap-2">
-                              <Button size="sm" variant="default" className="h-8 bg-green-600 hover:bg-green-700" onClick={() => approveDeposit(deposit.id)}>
+                              <Button size="sm" variant="default" className="h-7 md:h-8 px-2 md:px-3 text-xs bg-green-600 hover:bg-green-700" onClick={() => approveDeposit(deposit.id)}>
                                 Approve
                               </Button>
-                              <Button size="sm" variant="outline" className="h-8 text-red-600 border-red-200 hover:bg-red-50" onClick={() => rejectDeposit(deposit.id)}>
+                              <Button size="sm" variant="outline" className="h-7 md:h-8 px-2 md:px-3 text-xs text-red-600 border-red-200 hover:bg-red-50" onClick={() => rejectDeposit(deposit.id)}>
                                 Reject
                               </Button>
                             </div>
                           ) : (
-                            <Button size="sm" variant="ghost" className="h-8">View Details</Button>
+                            <Button size="sm" variant="ghost" className="h-8 text-xs">Details</Button>
                           )}
                         </td>
                       </tr>

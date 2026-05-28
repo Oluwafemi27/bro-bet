@@ -138,12 +138,12 @@ const Transactions: React.FC = () => {
               <thead>
                 <tr className="border-b border-border/30 bg-secondary/30">
                   <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Reference</th>
-                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground">User ID</th>
-                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Type</th>
+                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden md:table-cell">User ID</th>
+                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden sm:table-cell">Type</th>
                   <th className="px-6 py-4 text-right font-semibold text-muted-foreground">Amount</th>
-                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Method</th>
+                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden lg:table-cell">Method</th>
                   <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Status</th>
-                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Date</th>
+                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden xl:table-cell">Date</th>
                   <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Actions</th>
                 </tr>
               </thead>
@@ -155,9 +155,14 @@ const Transactions: React.FC = () => {
                       idx % 2 === 0 ? "bg-background/50" : "bg-background"
                     } hover:bg-primary/5`}
                   >
-                    <td className="px-6 py-4 font-medium text-foreground font-mono text-xs">{txn.reference}</td>
-                    <td className="px-6 py-4 text-muted-foreground text-xs">{txn.user_id}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 font-medium text-foreground font-mono text-xs">
+                      <div>
+                        {txn.reference}
+                        <div className="sm:hidden text-xs text-muted-foreground font-normal mt-1">{txn.type.replace(/_/g, " ").toUpperCase()}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-muted-foreground text-xs hidden md:table-cell">{txn.user_id}</td>
+                    <td className="px-6 py-4 hidden sm:table-cell">
                       <span className="text-xs px-2 py-1 rounded-full font-bold bg-secondary/30">
                         {txn.type.replace(/_/g, " ").toUpperCase()}
                       </span>
@@ -165,7 +170,7 @@ const Transactions: React.FC = () => {
                     <td className="px-6 py-4 text-right font-mono font-semibold">
                       {txn.type.includes("withdrawal") || txn.type.includes("bet") ? "-" : "+"}₦{Number(txn.amount).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground text-xs">{txn.method}</td>
+                    <td className="px-6 py-4 text-muted-foreground text-xs hidden lg:table-cell">{txn.method}</td>
                     <td className="px-6 py-4">
                       <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
                         txn.status === "completed"
@@ -177,17 +182,19 @@ const Transactions: React.FC = () => {
                         {txn.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-xs text-muted-foreground">
+                    <td className="px-6 py-4 text-xs text-muted-foreground hidden xl:table-cell">
                       {new Date(txn.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 flex gap-2">
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
-                        <Eye className="h-3.5 w-3.5" />
-                        View
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                          <Eye className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">View</span>
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

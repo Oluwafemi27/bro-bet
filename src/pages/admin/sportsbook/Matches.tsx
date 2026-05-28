@@ -144,11 +144,11 @@ const Matches: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/30 bg-secondary/30">
-                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground">League</th>
+                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden md:table-cell">League</th>
                   <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Match</th>
-                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Scheduled</th>
+                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden lg:table-cell">Scheduled</th>
                   <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Status</th>
-                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Odds</th>
+                  <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden sm:table-cell">Odds</th>
                   <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Actions</th>
                 </tr>
               </thead>
@@ -160,15 +160,19 @@ const Matches: React.FC = () => {
                       idx % 2 === 0 ? "bg-background/50" : "bg-background"
                     } hover:bg-primary/5`}
                   >
-                    <td className="px-6 py-4 font-medium text-foreground text-xs">{match.league}</td>
+                    <td className="px-6 py-4 font-medium text-foreground text-xs hidden md:table-cell">{match.league}</td>
                     <td className="px-6 py-4 font-medium text-foreground">
-                      {match.home_team} vs {match.away_team}
+                      <div>
+                        {match.home_team} vs {match.away_team}
+                        <div className="md:hidden text-[10px] text-muted-foreground font-normal mt-1">{match.league}</div>
+                        <div className="lg:hidden text-[10px] text-muted-foreground font-normal">{new Date(match.scheduled_time).toLocaleDateString()}</div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground text-xs">
+                    <td className="px-6 py-4 text-muted-foreground text-xs hidden lg:table-cell">
                       {new Date(match.scheduled_time).toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
+                      <span className={`text-[10px] md:text-xs px-2 md:px-3 py-1 rounded-full font-bold border ${
                         match.status === "live"
                           ? "bg-red-100/30 text-red-700 border-red-200/50"
                           : match.status === "upcoming"
@@ -178,7 +182,7 @@ const Matches: React.FC = () => {
                         {match.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 hidden sm:table-cell">
                       <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
                         match.odds_locked
                           ? "bg-amber-100/30 text-amber-700 border-amber-200/50"
@@ -188,9 +192,9 @@ const Matches: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 px-2">
                         <Edit className="h-3.5 w-3.5" />
-                        Edit
+                        <span className="hidden sm:inline">Edit</span>
                       </Button>
                     </td>
                   </tr>

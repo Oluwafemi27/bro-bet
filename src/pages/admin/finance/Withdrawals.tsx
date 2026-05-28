@@ -40,36 +40,36 @@ const Withdrawals = () => {
     <div className="space-y-6">
       <h2 className="font-display text-2xl font-bold">Withdrawals</h2>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-3xl font-bold text-amber-600">
+              <p className="text-2xl md:text-3xl font-bold text-amber-600">
                 {withdrawals.filter((w) => w.status === "pending").length}
               </p>
-              <p className="text-sm text-muted-foreground">Pending</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Pending</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-3xl font-bold text-green-600">
+              <p className="text-2xl md:text-3xl font-bold text-green-600">
                 {withdrawals.filter((w) => w.status === "completed").length}
               </p>
-              <p className="text-sm text-muted-foreground">Completed</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Completed</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-3xl font-bold">
+              <p className="text-2xl md:text-3xl font-bold">
                 ₦{withdrawals
                   .reduce((sum, w) => sum + (w.amount || 0), 0)
                   .toLocaleString()}
               </p>
-              <p className="text-sm text-muted-foreground">Total</p>
+              <p className="text-xs md:text-sm text-muted-foreground">Total</p>
             </div>
           </CardContent>
         </Card>
@@ -85,20 +85,25 @@ const Withdrawals = () => {
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
                   <th className="p-3">Amount</th>
-                  <th className="p-3">Bank Account</th>
+                  <th className="p-3 hidden sm:table-cell">Bank Account</th>
                   <th className="p-3">Status</th>
-                  <th className="p-3">Date</th>
+                  <th className="p-3 hidden md:table-cell">Date</th>
                   <th className="p-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {withdrawals.map((w) => (
                   <tr key={w.id} className="border-b border-border/50">
-                    <td className="p-3 font-mono">₦{Number(w.amount).toFixed(2)}</td>
-                    <td className="p-3 text-sm">{w.bank_account}</td>
+                    <td className="p-3 font-mono">
+                      <div>
+                        ₦{Number(w.amount).toFixed(2)}
+                        <div className="sm:hidden text-[10px] text-muted-foreground mt-1">{w.bank_account}</div>
+                      </div>
+                    </td>
+                    <td className="p-3 text-sm hidden sm:table-cell">{w.bank_account}</td>
                     <td className="p-3">
                       <span
-                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        className={`text-[10px] md:text-xs px-2 py-1 rounded-full font-medium ${
                           w.status === "completed"
                             ? "bg-green-100 text-green-800"
                             : "bg-amber-100 text-amber-800"
@@ -107,9 +112,9 @@ const Withdrawals = () => {
                         {w.status.toUpperCase()}
                       </span>
                     </td>
-                    <td className="p-3 text-xs">{new Date(w.created_at).toLocaleDateString()}</td>
+                    <td className="p-3 text-xs hidden md:table-cell">{new Date(w.created_at).toLocaleDateString()}</td>
                     <td className="p-3">
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" className="h-8 text-xs px-2">
                         Process
                       </Button>
                     </td>

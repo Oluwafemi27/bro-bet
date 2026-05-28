@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BASE = "https://www.thesportsdb.com/api/v1/json/123";
 // Known fighting league IDs in TheSportsDB
 const LEAGUE_IDS = ["4445"]; // Boxing
 const SEASONS = ["2026", "2027"];
@@ -25,6 +24,8 @@ serve(async (req) => {
   }
 
   try {
+    const apiKey = Deno.env.get('SPORTSDB_API_KEY') || "123";
+    const BASE = `https://www.thesportsdb.com/api/v1/json/${apiKey}`;
     const events: any[] = [];
     const seen = new Set<string>();
     const now = Date.now();

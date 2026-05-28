@@ -129,9 +129,9 @@ const UserList: React.FC = () => {
                 <thead>
                   <tr className="border-b border-border/30 bg-secondary/30">
                     <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Name</th>
-                    <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Email</th>
+                    <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden md:table-cell">Email</th>
                     <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Balance</th>
-                    <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Joined</th>
+                    <th className="px-6 py-4 text-left font-semibold text-muted-foreground hidden lg:table-cell">Joined</th>
                     <th className="px-6 py-4 text-left font-semibold text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
@@ -143,12 +143,17 @@ const UserList: React.FC = () => {
                         idx % 2 === 0 ? "bg-background/50" : "bg-background"
                       } hover:bg-primary/5`}
                     >
-                      <td className="px-6 py-4 font-medium text-foreground">{user.full_name || "—"}</td>
-                      <td className="px-6 py-4 text-muted-foreground text-sm">{user.email || "—"}</td>
+                      <td className="px-6 py-4 font-medium text-foreground">
+                        <div>
+                          {user.full_name || "—"}
+                          <div className="md:hidden text-xs text-muted-foreground font-normal mt-1">{user.email}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground text-sm hidden md:table-cell">{user.email || "—"}</td>
                       <td className="px-6 py-4 font-mono font-semibold text-foreground">
                         ₦{Number(user.balance).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-6 py-4 text-xs text-muted-foreground font-medium">
+                      <td className="px-6 py-4 text-xs text-muted-foreground font-medium hidden lg:table-cell">
                         {new Date(user.created_at).toLocaleDateString("en-NG", {
                           year: "numeric",
                           month: "short",

@@ -23,7 +23,7 @@ async function fetchBoxing(): Promise<BoxingEvent[]> {
   
   if (error) {
     console.error("Error invoking get-boxing function:", error);
-    throw error;
+    return [];
   }
 
   return data?.events || [];

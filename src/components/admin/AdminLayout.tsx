@@ -23,9 +23,12 @@ import {
   LogOut,
   Bell,
   Clock,
+  Menu,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 interface NavItem {
   id: string;
@@ -199,12 +202,18 @@ const adminNavItems: NavItem[] = [
 ];
 
 export const AdminLayout: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set(["dashboard"]));
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAdmin, loading, signOut } = useAuth();
   const { toast } = useToast();
+
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -264,26 +273,21 @@ export const AdminLayout: React.FC = () => {
     return null;
   }
 
-  return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div
-        className={`border-r border-border bg-gradient-to-b from-card to-background transition-all duration-300 ease-in-out ${
-          sidebarOpen ? "w-64" : "w-20"
-        } flex flex-col shadow-lg`}
-      >
-        {/* Sidebar Header with Logo */}
-        <div className="flex items-center justify-between border-b border-border/50 px-4 py-6 bg-gradient-to-r from-primary/10 to-primary/5">
-          {sidebarOpen && (
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
-              </div>
-              <h2 className="font-display text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                Admin
-              </h2>
+  const SidebarContent = ({ isMobileView = false }) => (
+    <div className={`flex flex-col h-full ${isMobileView ? "" : sidebarOpen ? "w-64" : "w-20"} transition-all duration-300`}>
+      {/* Sidebar Header with Logo */}
+      <div className="flex items-center justify-between border-b border-border/50 px-4 py-6 bg-gradient-to-r from-primary/10 to-primary/5">
+        {(sidebarOpen || isMobileView) && (
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+              <Shield className="h-5 w-5 text-white" />
             </div>
-          )}
+            <h2 className="font-display text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+              Admin
+            </h2>
+          </div>
+        )}
+        {!isMobileView && (
           <Button
             variant="ghost"
             size="icon"
@@ -296,135 +300,177 @@ export const AdminLayout: React.FC = () => {
               <ChevronRight className="h-5 w-5" />
             )}
           </Button>
-        </div>
-
-        {/* Navigation */}
-        <ScrollArea className="flex-1 px-2">
-          <div className="space-y-1 py-4">
-            <Button
-              variant={location.pathname === "/" ? "default" : "ghost"}
-              size="sm"
-              className={`w-full justify-start gap-3 h-10 ${location.pathname === "/" ? "bg-primary/20" : "hover:bg-primary/10"}`}
-              onClick={() => navigate("/")}
-            >
-              <Home className="h-5 w-5" />
-              {sidebarOpen && <span className="font-medium">Back to Site</span>}
-            </Button>
-
-            {/* Divider */}
-            {sidebarOpen && <div className="my-2 h-px bg-border/30" />}
-
-            {adminNavItems.map((item) => (
-              <div key={item.id}>
-                <Button
-                  variant={isModuleActive(item.path) ? "secondary" : "ghost"}
-                  size="sm"
-                  className={`w-full justify-between gap-3 h-10 font-medium ${
-                    isModuleActive(item.path) ? "bg-primary/10 text-primary" : "hover:bg-primary/5"
-                  }`}
-                  onClick={() => {
-                    if (item.children) {
-                      toggleModule(item.id);
-                    } else {
-                      navigate(item.path);
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-3">
-                    {item.icon}
-                    {sidebarOpen && <span>{item.label}</span>}
-                  </div>
-                  {sidebarOpen && item.children && (
-                    <ChevronRight
-                      className={`h-4 w-4 transition-transform duration-200 ${
-                        expandedModules.has(item.id) ? "rotate-90" : ""
-                      }`}
-                    />
-                  )}
-                </Button>
-
-                {/* Submenu */}
-                {sidebarOpen &&
-                  item.children &&
-                  expandedModules.has(item.id) && (
-                    <div className="ml-2 mt-1 space-y-0.5 pl-2 border-l border-border/30">
-                      {item.children.map((subItem) => (
-                        <Button
-                          key={subItem.id}
-                          variant={isActive(subItem.path) ? "default" : "ghost"}
-                          size="sm"
-                          className={`w-full justify-start gap-2 text-xs h-9 ${
-                            isActive(subItem.path) ? "bg-primary" : "hover:bg-primary/10"
-                          }`}
-                          onClick={() => navigate(subItem.path)}
-                        >
-                          {subItem.icon}
-                          <span>{subItem.label}</span>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-
-        {/* User Profile Section */}
-        {sidebarOpen && (
-          <div className="border-t border-border/50 p-4 space-y-3">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
-              <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">Admin User</p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 text-red-600 hover:bg-red-50 hover:text-red-700"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
-          </div>
         )}
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-gradient-to-br from-background via-background to-background/80">
-        {/* Top Header */}
-        <div className="border-b border-border/50 bg-card/50 backdrop-blur-sm px-8 py-5 flex items-center justify-between shadow-sm">
-          <div className="flex-1">
-            <h1 className="font-display text-3xl font-bold text-foreground">{getPageTitle()}</h1>
-            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              {new Date().toLocaleString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit"
-              })}
+      {/* Navigation */}
+      <ScrollArea className="flex-1 px-2">
+        <div className="space-y-1 py-4">
+          <Button
+            variant={location.pathname === "/" ? "default" : "ghost"}
+            size="sm"
+            className={`w-full justify-start gap-3 h-10 ${location.pathname === "/" ? "bg-primary/20" : "hover:bg-primary/10"}`}
+            onClick={() => {
+              navigate("/");
+              if (isMobileView) setMobileMenuOpen(false);
+            }}
+          >
+            <Home className="h-5 w-5" />
+            {(sidebarOpen || isMobileView) && <span className="font-medium">Back to Site</span>}
+          </Button>
+
+          {/* Divider */}
+          {(sidebarOpen || isMobileView) && <div className="my-2 h-px bg-border/30" />}
+
+          {adminNavItems.map((item) => (
+            <div key={item.id}>
+              <Button
+                variant={isModuleActive(item.path) ? "secondary" : "ghost"}
+                size="sm"
+                className={`w-full justify-between gap-3 h-10 font-medium ${
+                  isModuleActive(item.path) ? "bg-primary/10 text-primary" : "hover:bg-primary/5"
+                }`}
+                onClick={() => {
+                  if (item.children) {
+                    toggleModule(item.id);
+                  } else {
+                    navigate(item.path);
+                    if (isMobileView) setMobileMenuOpen(false);
+                  }
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  {item.icon}
+                  {(sidebarOpen || isMobileView) && <span>{item.label}</span>}
+                </div>
+                {(sidebarOpen || isMobileView) && item.children && (
+                  <ChevronRight
+                    className={`h-4 w-4 transition-transform duration-200 ${
+                      expandedModules.has(item.id) ? "rotate-90" : ""
+                    }`}
+                  />
+                )}
+              </Button>
+
+              {/* Submenu */}
+              {(sidebarOpen || isMobileView) &&
+                item.children &&
+                expandedModules.has(item.id) && (
+                  <div className="ml-2 mt-1 space-y-0.5 pl-2 border-l border-border/30">
+                    {item.children.map((subItem) => (
+                      <Button
+                        key={subItem.id}
+                        variant={isActive(subItem.path) ? "default" : "ghost"}
+                        size="sm"
+                        className={`w-full justify-start gap-2 text-xs h-9 ${
+                          isActive(subItem.path) ? "bg-primary" : "hover:bg-primary/10"
+                        }`}
+                        onClick={() => {
+                          navigate(subItem.path);
+                          if (isMobileView) setMobileMenuOpen(false);
+                        }}
+                      >
+                        {subItem.icon}
+                        <span>{subItem.label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+
+      {/* User Profile Section */}
+      {(sidebarOpen || isMobileView) && (
+        <div className="border-t border-border/50 p-4 space-y-3">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
+            <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center">
+              <Users className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">Admin User</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <div className={`border-r border-border bg-gradient-to-b from-card to-background shadow-lg flex-shrink-0`}>
+          <SidebarContent />
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-background via-background to-background/80 overflow-hidden">
+        {/* Top Header */}
+        <div className="border-b border-border/50 bg-card/50 backdrop-blur-sm px-4 md:px-8 py-3 md:py-5 flex items-center justify-between shadow-sm z-10">
+          <div className="flex items-center gap-4 flex-1">
+            {isMobile && (
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-10 w-10">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0 w-72">
+                  <SidebarContent isMobileView={true} />
+                </SheetContent>
+              </Sheet>
+            )}
+            <div className="min-w-0">
+              <h1 className="font-display text-xl md:text-3xl font-bold text-foreground truncate">{getPageTitle()}</h1>
+              <div className="hidden md:flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                {new Date().toLocaleString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 hover:bg-primary/10"
+              className="h-9 w-9 md:h-10 md:w-10 hover:bg-primary/10"
             >
               <Bell className="h-5 w-5" />
             </Button>
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-red-600"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5" />
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Page Content */}
         <div className="flex-1 overflow-auto">
-          <div className="p-8">
+          <div className="p-4 md:p-8 max-w-full">
             <Outlet />
           </div>
         </div>

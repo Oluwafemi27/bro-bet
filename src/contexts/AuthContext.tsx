@@ -123,63 +123,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 2000);
 
     // Set up auth state listener first
-    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
+    let authSubscription: any = null;
+    try {
+      const { data } = supabase.auth.onAuthStateChange(
+        async (event, currentSession) => {
+          if (!isMountedRef.current) return;
+
+          console.log("Auth state change:", event, currentSession?.user?.id);
+          
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
+
+          if (currentSession?.user) {
+            await fetchProfileAndRole(currentSession.user.id);
+          } else {
+            setProfile(null);
+            setIsAdmin(false);
+          }
+          
+          // We set loading false on these key events
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
+            setLoading(false);
+            initializedRef.current = true;
+          }
+        }
+      );
+      authSubscription = data.subscription;
+    } catch (error) {
+      console.error("Error setting up auth state change listener:", error);
+      if (isMountedRef.current) {
+        setLoading(false);
+        initializedRef.current = true;
+      }
+    }
+
+    // Initialize auth by getting the current session
+    try {
+      supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
         if (!isMountedRef.current) return;
 
-        console.log("Auth state change:", event, currentSession?.user?.id);
-        
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
 
-        if (currentSession?.user) {
-          await fetchProfileAndRole(currentSession.user.id);
+        if (initialSession?.user) {
+          fetchProfileAndRole(initialSession.user.id).finally(() => {
+            if (isMountedRef.current) {
+              setLoading(false);
+              initializedRef.current = true;
+            }
+          });
         } else {
           setProfile(null);
           setIsAdmin(false);
-        }
-        
-        // We set loading false on these key events
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'SIGNED_OUT') {
-          setLoading(false);
-          initializedRef.current = true;
-        }
-      }
-    );
-
-    // Initialize auth by getting the current session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      if (!isMountedRef.current) return;
-
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-
-      if (initialSession?.user) {
-        fetchProfileAndRole(initialSession.user.id).finally(() => {
           if (isMountedRef.current) {
             setLoading(false);
             initializedRef.current = true;
           }
-        });
-      } else {
-        setProfile(null);
-        setIsAdmin(false);
+        }
+      }).catch((error) => {
+        console.error("Error initializing auth session:", error);
         if (isMountedRef.current) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setIsAdmin(false);
           setLoading(false);
           initializedRef.current = true;
         }
-      }
-    }).catch((error) => {
-      console.error("Error initializing auth:", error);
+      });
+    } catch (error) {
+      console.error("Error calling getSession:", error);
       if (isMountedRef.current) {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setIsAdmin(false);
         setLoading(false);
         initializedRef.current = true;
       }
-    });
+    }
 
     return () => {
       isMountedRef.current = false;
