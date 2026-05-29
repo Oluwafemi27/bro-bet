@@ -26,7 +26,54 @@ const UserList: React.FC = () => {
 
   useEffect(() => {
     loadUsers();
+
+    const channel = supabase
+      .channel("profiles-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => {
+          loadUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  const handleExport = () => {
+    const csv = [
+      ["Name", "Email", "Balance", "Joined"],
+      ...filteredUsers.map(u => [u.full_name, u.email, u.balance, u.created_at])
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "users.csv");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast({ title: "Exported successfully" });
+  };
+
+  const handleStatusChange = async (userId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ status: newStatus })
+        .eq("id", userId);
+      
+      if (error) throw error;
+      toast({ title: `User ${newStatus === 'banned' ? 'banned' : 'updated'} successfully` });
+    } catch (err: any) {
+      toast({ title: "Error updating status", description: err.message, variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     filterUsers();
@@ -78,7 +125,10 @@ const UserList: React.FC = () => {
       title="User Management"
       description={`${filteredUsers.length} total users registered on the platform.`}
       actions={
-        <Button className="gap-2 bg-primary hover:bg-primary/90 h-11 px-6 font-medium">
+        <Button 
+          className="gap-2 bg-primary hover:bg-primary/90 h-11 px-6 font-medium"
+          onClick={handleExport}
+        >
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
@@ -173,10 +223,11 @@ const UserList: React.FC = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 text-xs border-amber-200/50 hover:border-amber-400/50 hover:bg-amber-50/20 gap-1.5"
+                            className="h-8 text-xs border-red-200/50 hover:border-red-400/50 hover:bg-red-50/20 gap-1.5"
+                            onClick={() => handleStatusChange(user.id, 'banned')}
                           >
                             <Lock className="h-3.5 w-3.5" />
-                            Limit
+                            Ban
                           </Button>
                           <Button
                             size="icon"

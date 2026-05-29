@@ -183,6 +183,7 @@ const adminNavItems: NavItem[] = [
     icon: <Shield className="h-5 w-5" />,
     path: "/admin/compliance",
     children: [
+      { id: "compliance-kyc", label: "KYC Management", icon: <Users className="h-4 w-4" />, path: "/admin/compliance/kyc" },
       { id: "compliance-logs", label: "Compliance Logs", icon: <FileText className="h-4 w-4" />, path: "/admin/compliance/logs" },
       { id: "compliance-rg", label: "Responsible Gaming", icon: <Shield className="h-4 w-4" />, path: "/admin/compliance/rg" },
       { id: "compliance-exclusions", label: "Exclusions", icon: <AlertTriangle className="h-4 w-4" />, path: "/admin/compliance/exclusions" },

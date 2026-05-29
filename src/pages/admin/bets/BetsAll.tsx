@@ -34,6 +34,7 @@ const BetsAll: React.FC = () => {
 
   const loadBets = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from("bets")
         .select("*")
@@ -48,6 +49,25 @@ const BetsAll: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadBets();
+
+    const channel = supabase
+      .channel("bets-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bets" },
+        () => {
+          loadBets();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filterBets = () => {
     let filtered = bets;

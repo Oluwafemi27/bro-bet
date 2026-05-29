@@ -20,7 +20,77 @@ const Withdrawals = () => {
 
   useEffect(() => {
     loadWithdrawals();
+
+    const channel = supabase
+      .channel("withdrawals-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "transactions", filter: "type=eq.withdrawal" },
+        () => {
+          loadWithdrawals();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
+
+  const approveWithdrawal = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .update({ status: "completed" })
+        .eq("id", id);
+      
+      if (error) throw error;
+      toast({ title: "Withdrawal approved" });
+    } catch (err: any) {
+      toast({ title: "Error approving withdrawal", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const rejectWithdrawal = async (id: string) => {
+    try {
+      // Get withdrawal details
+      const { data: withdrawal, error: fetchError } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+
+      // Update status
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({ status: "failed" })
+        .eq("id", id);
+      
+      if (updateError) throw updateError;
+
+      // Refund balance
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", withdrawal.user_id)
+        .single();
+      
+      if (profileError) throw profileError;
+
+      const newBalance = Number(profile.balance || 0) + Number(withdrawal.amount);
+      
+      await supabase
+        .from("profiles")
+        .update({ balance: newBalance })
+        .eq("id", withdrawal.user_id);
+
+      toast({ title: "Withdrawal rejected and balance refunded" });
+    } catch (err: any) {
+      toast({ title: "Error rejecting withdrawal", description: err.message, variant: "destructive" });
+    }
+  };
 
   const loadWithdrawals = async () => {
     try {
@@ -114,9 +184,18 @@ const Withdrawals = () => {
                     </td>
                     <td className="p-3 text-xs hidden md:table-cell">{new Date(w.created_at).toLocaleDateString()}</td>
                     <td className="p-3">
-                      <Button size="sm" variant="outline" className="h-8 text-xs px-2">
-                        Process
-                      </Button>
+                      {w.status === "pending" ? (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="default" className="h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => approveWithdrawal(w.id)}>
+                            Approve
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 text-xs text-red-600 border-red-200" onClick={() => rejectWithdrawal(w.id)}>
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="ghost" className="h-8 text-xs">Details</Button>
+                      )}
                     </td>
                   </tr>
                 ))}

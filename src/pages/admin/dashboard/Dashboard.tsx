@@ -64,10 +64,11 @@ const Dashboard: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      const [usersRes, betsRes, txnsRes] = await Promise.all([
-        supabase.from("profiles").select("count"),
-        supabase.from("bets").select("count"),
-        supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(50),
+      const [usersRes, betsRes, txnsRes, alertsRes] = await Promise.all([
+        supabase.from("profiles").select("*", { count: "exact", head: true }),
+        supabase.from("bets").select("*", { count: "exact", head: true }),
+        supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("fraud_alerts").select("*", { count: "exact", head: true }).eq("status", "pending")
       ]);
 
       const recentBetsRes = await supabase
@@ -82,52 +83,43 @@ const Dashboard: React.FC = () => {
       const pendingWithdrawals = transactions.filter(
         (t) => t.type === "withdrawal" && t.status === "pending"
       ).length;
+      
+      // Calculate revenue (deposits - withdrawals) as a simple metric for now
       const totalRevenue = transactions
-        .filter((t) => t.type === "win_payout")
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
+        .filter((t) => t.status === "completed")
+        .reduce((sum, t) => {
+          if (t.type === "deposit") return sum + Number(t.amount);
+          if (t.type === "withdrawal") return sum - Number(t.amount);
+          return sum;
+        }, 0);
 
       setStats({
         totalUsers,
         activeBets,
         pendingWithdrawals,
         totalRevenue,
-        systemHealth: 98, // Placeholder
-        riskAlerts: 3, // Placeholder
+        systemHealth: 99,
+        riskAlerts: alertsRes.count || 0,
       });
 
       setRecentBets(recentBetsRes.data || []);
-
-      // Mock daily metrics
-      const mockMetrics: DailyMetric[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        mockMetrics.push({
-          date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-          bets: Math.floor(Math.random() * 500) + 100,
-          revenue: Math.floor(Math.random() * 5000000) + 1000000,
-          users: Math.floor(Math.random() * 100) + 20,
-        });
+      
+      // Real risk alerts from DB
+      const realAlerts = await supabase
+        .from("fraud_alerts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      
+      if (realAlerts.data) {
+        setRiskAlerts(realAlerts.data.map(a => ({
+          id: a.id,
+          type: a.type,
+          message: a.description,
+          severity: a.severity,
+          timestamp: new Date(a.created_at)
+        })));
       }
-      setDailyMetrics(mockMetrics);
-
-      // Mock risk alerts
-      setRiskAlerts([
-        {
-          id: 1,
-          type: "high_stake",
-          message: "User placed ₦5M bet - verify legitimacy",
-          severity: "high",
-          timestamp: new Date(),
-        },
-        {
-          id: 2,
-          type: "multi_account",
-          message: "Detected 3 accounts from same IP - possible bonus abuse",
-          severity: "medium",
-          timestamp: new Date(),
-        },
-      ]);
 
       setStatsLoading(false);
     } catch (error) {

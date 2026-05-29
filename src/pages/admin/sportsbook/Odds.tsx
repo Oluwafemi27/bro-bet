@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Download, Edit, Plus, Zap } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Odds {
   id: string;
@@ -24,34 +25,83 @@ const OddsControl: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadOdds();
-  }, []);
-
-  useEffect(() => {
-    filterOdds();
-  }, [searchTerm, odds]);
-
   const loadOdds = async () => {
     try {
-      const mockOdds: Odds[] = [
-        { id: "1", match: "Arsenal vs Chelsea", market: "1x2", home_odds: 1.95, draw_odds: 3.20, away_odds: 3.85, margin: 4.5, last_updated: new Date().toISOString() },
-        { id: "2", match: "Man City vs Liverpool", market: "1x2", home_odds: 2.10, draw_odds: 3.40, away_odds: 3.50, margin: 3.8, last_updated: new Date().toISOString() },
-        { id: "3", match: "Barcelona vs Real Madrid", market: "1x2", home_odds: 2.05, draw_odds: 3.30, away_odds: 3.60, margin: 4.2, last_updated: new Date().toISOString() },
-      ];
-      setOdds(mockOdds);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("odds_markets")
+        .select(`
+          *,
+          matches (
+            home_team,
+            away_team
+          )
+        `);
+
+      if (error) throw error;
+
+      // Group by match and market
+      const grouped: Record<string, any> = {};
+      data?.forEach((o: any) => {
+        const key = `${o.match_id}-${o.market_name}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            id: key,
+            match: `${o.matches?.home_team} vs ${o.matches?.away_team}`,
+            market: o.market_name,
+            home_odds: 0,
+            draw_odds: 0,
+            away_odds: 0,
+            margin: 0,
+            last_updated: o.created_at
+          };
+        }
+        if (o.outcome_name === 'Home' || o.outcome_name === '1') grouped[key].home_odds = o.odds;
+        if (o.outcome_name === 'Draw' || o.outcome_name === 'X') grouped[key].draw_odds = o.odds;
+        if (o.outcome_name === 'Away' || o.outcome_name === '2') grouped[key].away_odds = o.odds;
+      });
+
+      const formattedOdds = Object.values(grouped).map(o => {
+        // Simple margin calculation if all odds > 0
+        let margin = 0;
+        if (o.home_odds > 0 && o.away_odds > 0) {
+          margin = (1/o.home_odds + (o.draw_odds > 0 ? 1/o.draw_odds : 0) + 1/o.away_odds - 1) * 100;
+        }
+        return { ...o, margin: Number(margin.toFixed(1)) };
+      });
+
+      setOdds(formattedOdds);
     } catch (err: any) {
-      toast({ title: "Error loading odds", variant: "destructive" });
+      toast({ title: "Error loading odds", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadOdds();
+    const channel = supabase
+      .channel("odds-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "odds_markets" },
+        () => {
+          loadOdds();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const filterOdds = () => {
     let filtered = odds;
     if (searchTerm) {
       filtered = filtered.filter((o) =>
-        o.match.toLowerCase().includes(searchTerm.toLowerCase())
+        o.match.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.market.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     setFilteredOdds(filtered);

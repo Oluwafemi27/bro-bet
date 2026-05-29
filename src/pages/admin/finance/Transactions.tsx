@@ -42,20 +42,46 @@ const Transactions: React.FC = () => {
 
   const loadTransactions = async () => {
     try {
-      const mockTransactions: Transaction[] = [
-        { id: "1", user_id: "user-1", type: "deposit", amount: 50000, method: "card", status: "completed", reference: "TXN-001", created_at: new Date().toISOString() },
-        { id: "2", user_id: "user-2", type: "withdrawal", amount: 25000, method: "bank_transfer", status: "completed", reference: "TXN-002", created_at: new Date().toISOString() },
-        { id: "3", user_id: "user-3", type: "bet_placement", amount: 10000, method: "wallet", status: "completed", reference: "TXN-003", created_at: new Date().toISOString() },
-        { id: "4", user_id: "user-4", type: "bet_win", amount: 45000, method: "wallet", status: "completed", reference: "TXN-004", created_at: new Date().toISOString() },
-        { id: "5", user_id: "user-5", type: "bonus_credit", amount: 5000, method: "system", status: "completed", reference: "TXN-005", created_at: new Date().toISOString() },
-      ];
-      setTransactions(mockTransactions);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      
+      const formattedTransactions = data.map((t: any) => ({
+        ...t,
+        method: t.reference ? (t.reference.includes("paystack") ? "Paystack" : "Manual") : "System"
+      }));
+
+      setTransactions(formattedTransactions);
     } catch (err: any) {
-      toast({ title: "Error loading transactions", variant: "destructive" });
+      toast({ title: "Error loading transactions", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadTransactions();
+
+    const channel = supabase
+      .channel("transactions-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "transactions" },
+        () => {
+          loadTransactions();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filterTransactions = () => {
     let filtered = transactions;

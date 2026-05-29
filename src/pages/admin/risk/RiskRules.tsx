@@ -3,14 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Rule {
   id: string;
   name: string;
-  trigger: string;
+  description: string;
+  criteria: any;
   action: string;
-  enabled: boolean;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -19,32 +21,64 @@ const RiskRules: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadRules();
-  }, []);
-
   const loadRules = async () => {
     try {
-      const mockRules: Rule[] = [
-        { id: "1", name: "High Stake Alert", trigger: "Bet > ₦5M", action: "Flag for review", enabled: true, created_at: new Date().toISOString() },
-        { id: "2", name: "Rapid Win Pattern", trigger: "3 wins in 10 mins", action: "Increase scrutiny", enabled: true, created_at: new Date().toISOString() },
-        { id: "3", name: "Multi-Account Detector", trigger: "Same IP, 2+ accounts", action: "Auto-limit", enabled: true, created_at: new Date().toISOString() },
-        { id: "4", name: "VPN Block", trigger: "VPN detected", action: "Deny access", enabled: false, created_at: new Date().toISOString() },
-      ];
-      setRules(mockRules);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("risk_rules")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setRules(data || []);
     } catch (err: any) {
-      toast({ title: "Error loading rules", variant: "destructive" });
+      toast({ title: "Error loading rules", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleRule = async (id: string, enabled: boolean) => {
+  useEffect(() => {
+    loadRules();
+
+    const channel = supabase
+      .channel("risk-rules-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "risk_rules" },
+        () => {
+          loadRules();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const toggleRule = async (id: string, currentStatus: boolean) => {
     try {
-      toast({ title: `Rule ${enabled ? "enabled" : "disabled"}` });
-      loadRules();
+      const { error } = await supabase
+        .from("risk_rules")
+        .update({ is_active: !currentStatus })
+        .eq("id", id);
+      
+      if (error) throw error;
+      toast({ title: `Rule ${!currentStatus ? 'enabled' : 'disabled'} successfully` });
     } catch (err: any) {
-      toast({ title: "Error updating rule", variant: "destructive" });
+      toast({ title: "Error updating rule", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const deleteRule = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this rule?")) return;
+    try {
+      const { error } = await supabase.from("risk_rules").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Rule deleted successfully" });
+    } catch (err: any) {
+      toast({ title: "Error deleting rule", description: err.message, variant: "destructive" });
     }
   };
 
@@ -73,7 +107,7 @@ const RiskRules: React.FC = () => {
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">{rule.name}</p>
                   <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                    <span>Trigger: {rule.trigger}</span>
+                    <span>Criteria: {JSON.stringify(rule.criteria)}</span>
                     <span>Action: {rule.action}</span>
                   </div>
                 </div>
@@ -81,10 +115,10 @@ const RiskRules: React.FC = () => {
                   <Button
                     size="icon"
                     variant="ghost"
-                    onClick={() => toggleRule(rule.id, !rule.enabled)}
+                    onClick={() => toggleRule(rule.id, rule.is_active)}
                     className="h-10 w-10"
                   >
-                    {rule.enabled ? (
+                    {rule.is_active ? (
                       <ToggleRight className="h-5 w-5 text-green-600" />
                     ) : (
                       <ToggleLeft className="h-5 w-5 text-muted-foreground" />
@@ -93,7 +127,12 @@ const RiskRules: React.FC = () => {
                   <Button size="icon" variant="ghost" className="h-10 w-10">
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-10 w-10 text-red-600 hover:text-red-700">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-10 w-10 text-red-600 hover:text-red-700"
+                    onClick={() => deleteRule(rule.id)}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

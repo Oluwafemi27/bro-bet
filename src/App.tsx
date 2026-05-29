@@ -80,6 +80,10 @@ import Providers from "./pages/admin/casino/Providers";
 
 // Compliance
 import ResponsibleGaming from "./pages/admin/compliance/ResponsibleGaming";
+import KYCManagement from "./pages/admin/compliance/KYCManagement";
+
+// Agents
+import AgentList from "./pages/admin/agents/AgentList";
 
 // Support
 import SupportTickets from "./pages/admin/support/SupportTickets";
@@ -176,9 +180,9 @@ const App = () => (
                   <Route path="reports/agents" element={<GGRReport />} />
 
                   {/* Agents & Affiliates */}
-                  <Route path="agents/list" element={<UserList />} />
-                  <Route path="agents/commissions" element={<UserList />} />
-                  <Route path="agents/players" element={<UserList />} />
+                  <Route path="agents/list" element={<AgentList />} />
+                  <Route path="agents/commissions" element={<AgentList />} />
+                  <Route path="agents/players" element={<AgentList />} />
 
                   {/* Settings */}
                   <Route path="settings/general" element={<GeneralSettings />} />
@@ -188,6 +192,7 @@ const App = () => (
                   <Route path="settings/logs" element={<GeneralSettings />} />
 
                   {/* Compliance */}
+                  <Route path="compliance/kyc" element={<KYCManagement />} />
                   <Route path="compliance/logs" element={<ResponsibleGaming />} />
                   <Route path="compliance/rg" element={<ResponsibleGaming />} />
                   <Route path="compliance/exclusions" element={<ResponsibleGaming />} />

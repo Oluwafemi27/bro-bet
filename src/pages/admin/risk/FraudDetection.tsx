@@ -3,15 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, CheckCircle, Eye } from "lucide-react";
+import { AlertTriangle, CheckCircle, Eye, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FraudAlert {
   id: string;
   user_id: string;
-  pattern: string;
-  risk_score: number;
+  type: string;
+  severity: string;
+  description: string;
   status: string;
-  detected_at: string;
+  created_at: string;
 }
 
 const FraudDetection: React.FC = () => {
@@ -19,22 +21,53 @@ const FraudDetection: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadAlerts();
-  }, []);
-
   const loadAlerts = async () => {
     try {
-      const mockAlerts: FraudAlert[] = [
-        { id: "1", user_id: "user-1", pattern: "Matched Betting", risk_score: 92, status: "flagged", detected_at: new Date().toISOString() },
-        { id: "2", user_id: "user-2", pattern: "Multi-Account Network", risk_score: 87, status: "flagged", detected_at: new Date().toISOString() },
-        { id: "3", user_id: "user-3", pattern: "Bonus Abuse", risk_score: 75, status: "reviewed", detected_at: new Date().toISOString() },
-      ];
-      setAlerts(mockAlerts);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("fraud_alerts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setAlerts(data || []);
     } catch (err: any) {
-      toast({ title: "Error loading fraud alerts", variant: "destructive" });
+      toast({ title: "Error loading fraud alerts", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAlerts();
+
+    const channel = supabase
+      .channel("fraud-alerts-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "fraud_alerts" },
+        () => {
+          loadAlerts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const updateAlertStatus = async (id: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("fraud_alerts")
+        .update({ status: newStatus })
+        .eq("id", id);
+      
+      if (error) throw error;
+      toast({ title: `Alert marked as ${newStatus}` });
+    } catch (err: any) {
+      toast({ title: "Error updating alert", description: err.message, variant: "destructive" });
     }
   };
 
@@ -53,28 +86,45 @@ const FraudDetection: React.FC = () => {
         <CardContent className="p-0">
           <div className="space-y-3 p-6">
             {alerts.map((alert) => (
-              <div key={alert.id} className="flex items-center justify-between p-4 border border-red-200/30 rounded-lg bg-red-50/30">
+              <div key={alert.id} className={`flex items-center justify-between p-4 border rounded-lg ${
+                alert.severity === 'critical' || alert.severity === 'high' ? 'border-red-200 bg-red-50/30' : 'border-amber-200 bg-amber-50/30'
+              }`}>
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <AlertTriangle className={`h-5 w-5 ${alert.severity === 'critical' || alert.severity === 'high' ? 'text-red-600' : 'text-amber-600'}`} />
                   <div>
-                    <p className="font-semibold text-foreground">{alert.pattern}</p>
-                    <p className="text-xs text-muted-foreground">{alert.user_id}</p>
+                    <p className="font-semibold text-foreground">{alert.type}</p>
+                    <p className="text-xs text-muted-foreground">{alert.description}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">User: {alert.user_id}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-bold text-red-600">Risk: {alert.risk_score}%</p>
-                    <span className="text-xs px-2 py-1 rounded-full bg-red-100/30 text-red-700 border border-red-200/50 font-bold">
+                    <p className={`text-sm font-bold ${alert.severity === 'critical' || alert.severity === 'high' ? 'text-red-600' : 'text-amber-600'}`}>
+                      {alert.severity.toUpperCase()}
+                    </p>
+                    <span className="text-xs px-2 py-1 rounded-full bg-background/50 border font-bold">
                       {alert.status.toUpperCase()}
                     </span>
                   </div>
-                  <Button size="sm" variant="outline" className="h-8 gap-1.5">
-                    <Eye className="h-3.5 w-3.5" />
-                    Review
-                  </Button>
+                  <div className="flex gap-1">
+                    {alert.status === 'pending' && (
+                      <Button size="sm" variant="outline" className="h-8 text-xs bg-green-50 text-green-700 border-green-200" onClick={() => updateAlertStatus(alert.id, 'resolved')}>
+                        <CheckCircle className="h-3.5 w-3.5 mr-1" /> Resolve
+                      </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-8 gap-1.5">
+                      <Eye className="h-3.5 w-3.5" /> Review
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
+            {alerts.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                <CheckCircle className="h-12 w-12 mx-auto opacity-20 mb-3 text-green-600" />
+                <p>No fraud alerts found.</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

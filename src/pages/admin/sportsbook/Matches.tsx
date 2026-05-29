@@ -41,19 +41,51 @@ const Matches: React.FC = () => {
 
   const loadMatches = async () => {
     try {
-      const mockMatches: Match[] = [
-        { id: "1", league: "Premier League", home_team: "Arsenal", away_team: "Chelsea", scheduled_time: "2024-04-26T15:00:00", status: "upcoming", odds_locked: false },
-        { id: "2", league: "Premier League", home_team: "Man City", away_team: "Liverpool", scheduled_time: "2024-04-26T17:30:00", status: "upcoming", odds_locked: false },
-        { id: "3", league: "La Liga", home_team: "Barcelona", away_team: "Real Madrid", scheduled_time: "2024-04-27T20:00:00", status: "upcoming", odds_locked: true },
-        { id: "4", league: "Serie A", home_team: "Juventus", away_team: "AC Milan", scheduled_time: "2024-04-25T19:00:00", status: "live", odds_locked: true },
-      ];
-      setMatches(mockMatches);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("matches")
+        .select(`
+          *,
+          leagues (
+            name
+          )
+        `)
+        .order("start_time", { ascending: true });
+
+      if (error) throw error;
+      
+      const formattedMatches = data.map((m: any) => ({
+        ...m,
+        league: m.leagues?.name || "Unknown",
+        scheduled_time: m.start_time,
+        odds_locked: false // We can add this to DB later if needed
+      }));
+
+      setMatches(formattedMatches);
     } catch (err: any) {
       toast({ title: "Error loading matches", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadMatches();
+    const channel = supabase
+      .channel("matches-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "matches" },
+        () => {
+          loadMatches();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filterMatches = () => {
     let filtered = matches;

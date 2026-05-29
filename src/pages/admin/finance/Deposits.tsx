@@ -33,6 +33,21 @@ const Deposits: React.FC = () => {
 
   useEffect(() => {
     loadDeposits();
+
+    const channel = supabase
+      .channel("deposits-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "transactions", filter: "type=eq.deposit" },
+        () => {
+          loadDeposits();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -68,12 +83,49 @@ const Deposits: React.FC = () => {
 
   const approveDeposit = async (id: string) => {
     try {
-      const { error } = await supabase.from("transactions").update({ status: "completed" }).eq("id", id);
-      if (error) throw error;
-      toast({ title: "Deposit approved" });
+      // Get the deposit details first to know user_id and amount
+      const { data: deposit, error: fetchError } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      if (deposit.status !== 'pending') {
+        toast({ title: "Deposit already processed", variant: "destructive" });
+        return;
+      }
+
+      // Update transaction status
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({ status: "completed" })
+        .eq("id", id);
+      
+      if (updateError) throw updateError;
+
+      // Credit user balance - in a real app this would be in a DB trigger or RPC
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("balance")
+        .eq("id", deposit.user_id)
+        .single();
+      
+      if (profileError) throw profileError;
+
+      const newBalance = Number(profile.balance || 0) + Number(deposit.amount);
+      
+      const { error: balanceError } = await supabase
+        .from("profiles")
+        .update({ balance: newBalance })
+        .eq("id", deposit.user_id);
+      
+      if (balanceError) throw balanceError;
+
+      toast({ title: "Deposit approved and balance credited" });
       loadDeposits();
     } catch (err: any) {
-      toast({ title: "Error approving deposit", variant: "destructive" });
+      toast({ title: "Error approving deposit", description: err.message, variant: "destructive" });
     }
   };
 

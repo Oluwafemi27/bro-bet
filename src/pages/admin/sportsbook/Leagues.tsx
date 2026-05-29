@@ -12,7 +12,7 @@ interface League {
   name: string;
   sport: string;
   country: string;
-  active: boolean;
+  is_active: boolean;
   created_at: string;
 }
 
@@ -33,19 +33,58 @@ const Leagues: React.FC = () => {
 
   const loadLeagues = async () => {
     try {
-      // Mock data - replace with actual API call
-      const mockLeagues: League[] = [
-        { id: "1", name: "Premier League", sport: "Football", country: "England", active: true, created_at: new Date().toISOString() },
-        { id: "2", name: "La Liga", sport: "Football", country: "Spain", active: true, created_at: new Date().toISOString() },
-        { id: "3", name: "Serie A", sport: "Football", country: "Italy", active: true, created_at: new Date().toISOString() },
-        { id: "4", name: "Bundesliga", sport: "Football", country: "Germany", active: true, created_at: new Date().toISOString() },
-        { id: "5", name: "Ligue 1", sport: "Football", country: "France", active: true, created_at: new Date().toISOString() },
-      ];
-      setLeagues(mockLeagues);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("leagues")
+        .select(`
+          *,
+          sports (
+            name
+          )
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      
+      const formattedLeagues = data.map((l: any) => ({
+        ...l,
+        sport: l.sports?.name || "Unknown"
+      }));
+
+      setLeagues(formattedLeagues);
     } catch (err: any) {
       toast({ title: "Error loading leagues", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("leagues-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leagues" },
+        () => {
+          loadLeagues();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this league?")) return;
+    try {
+      const { error } = await supabase.from("leagues").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "League deleted successfully" });
+      loadLeagues();
+    } catch (err: any) {
+      toast({ title: "Error deleting league", description: err.message, variant: "destructive" });
     }
   };
 
@@ -143,11 +182,11 @@ const Leagues: React.FC = () => {
                     <td className="px-6 py-4 text-muted-foreground">{league.country}</td>
                     <td className="px-6 py-4">
                       <span className={`text-xs px-3 py-1 rounded-full font-bold border ${
-                        league.active
+                        league.is_active
                           ? "bg-green-100/30 text-green-700 border-green-200/50"
                           : "bg-red-100/30 text-red-700 border-red-200/50"
                       }`}>
-                        {league.active ? "Active" : "Inactive"}
+                        {league.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-xs text-muted-foreground">
@@ -159,7 +198,12 @@ const Leagues: React.FC = () => {
                           <Edit className="h-3.5 w-3.5" />
                           Edit
                         </Button>
-                        <Button size="sm" variant="destructive" className="h-8 text-xs gap-1.5">
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          className="h-8 text-xs gap-1.5"
+                          onClick={() => handleDelete(league.id)}
+                        >
                           <Trash2 className="h-3.5 w-3.5" />
                           Delete
                         </Button>
