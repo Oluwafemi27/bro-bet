@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Wallet, ArrowUpCircle, ArrowDownCircle, History, LogOut, Copy, Sun, Moon, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DepositModal } from "@/components/wallet/DepositModal";
+import { WithdrawalModal } from "@/components/wallet/WithdrawalModal";
 
 const Account = () => {
   const { user, profile, loading, isAdmin, signOut } = useAuth();
@@ -17,6 +19,8 @@ const Account = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isDark, setIsDark] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isWithdrawalOpen, setIsWithdrawalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login");
@@ -100,15 +104,22 @@ const Account = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3">
-          <Button className="h-14 flex-col gap-1" onClick={() => toast({ title: "Deposit coming soon!" })}>
+          <Button className="h-14 flex-col gap-1" onClick={() => setIsDepositOpen(true)}>
             <ArrowDownCircle className="h-5 w-5" />
             <span className="text-xs">Deposit</span>
           </Button>
-          <Button variant="outline" className="h-14 flex-col gap-1" onClick={() => toast({ title: "Withdrawal request submitted!" })}>
+          <Button variant="outline" className="h-14 flex-col gap-1" onClick={() => setIsWithdrawalOpen(true)}>
             <ArrowUpCircle className="h-5 w-5" />
             <span className="text-xs">Withdraw</span>
           </Button>
         </div>
+
+        <DepositModal isOpen={isDepositOpen} onClose={() => setIsDepositOpen(false)} />
+        <WithdrawalModal 
+          isOpen={isWithdrawalOpen} 
+          onClose={() => setIsWithdrawalOpen(false)} 
+          balance={profile?.balance ?? 0} 
+        />
 
         {/* Referral */}
         <Card>

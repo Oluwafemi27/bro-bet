@@ -221,6 +221,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Set up real-time profile subscription
+  useEffect(() => {
+    if (!user) return;
+
+    console.log("Setting up real-time profile subscription for:", user.id);
+    const profileSubscription = supabase
+      .channel(`profile-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Profile updated in real-time:', payload.new);
+          if (isMountedRef.current) {
+            setProfile(payload.new as Profile);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileSubscription);
+    };
+  }, [user]);
+
   const signUp = async (email: string, password: string, metadata: { full_name: string; phone: string }) => {
     const { error } = await supabase.auth.signUp({
       email,
