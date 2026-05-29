@@ -17,7 +17,14 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get the user from the authorization header
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
 
     if (authError || !user) {
@@ -27,10 +34,10 @@ serve(async (req) => {
       });
     }
 
-    const { amount, bankCode, bankName, accountNumber } = await req.json();
+    const { amount, bankCode, bankName, accountNumber, accountName } = await req.json();
 
     if (!amount || amount <= 0 || !bankCode || !accountNumber) {
-      return new Response(JSON.stringify({ error: 'Invalid withdrawal details' }), {
+      return new Response(JSON.stringify({ error: 'Invalid withdrawal details. amount, bankCode, and accountNumber are required.' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -58,31 +65,43 @@ serve(async (req) => {
     // OPay configuration
     const OPAY_MERCHANT_ID = Deno.env.get('OPAY_MERCHANT_ID');
     const OPAY_PUBLIC_KEY = Deno.env.get('OPAY_PUBLIC_KEY');
+    const OPAY_SECRET_KEY = Deno.env.get('OPAY_SECRET_KEY');
     const OPAY_BASE_URL = Deno.env.get('OPAY_BASE_URL') || 'https://testapi.opaycheckout.com/api/v1';
+
+    if (!OPAY_MERCHANT_ID || !OPAY_SECRET_KEY) {
+      console.error('Missing OPay configuration for withdrawal');
+      return new Response(JSON.stringify({ error: 'Withdrawal configuration missing' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Call OPay Transfer API
     const opayPayload = {
       merchantId: OPAY_MERCHANT_ID,
       source: "balance",
-      amount: amount.toString(),
+      amount: parseFloat(amount).toFixed(2),
       currency: "NGN",
       reference: reference,
       destBankCode: bankCode,
       destBankAccountNumber: accountNumber,
-      destBankAccountName: "User", // Ideally fetch this or verify before
+      destBankAccountName: accountName || "User",
       callbackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/opay-webhook`,
     };
+
+    console.log('Initiating OPay transfer:', opayPayload);
 
     const response = await fetch(`${OPAY_BASE_URL}/transfer/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPAY_PUBLIC_KEY}`,
+        'Authorization': `Bearer ${OPAY_SECRET_KEY}`,
       },
       body: JSON.stringify(opayPayload),
     });
 
     const data = await response.json();
+    console.log('OPay transfer response:', data);
 
     if (data.code !== '00000') {
       console.error('OPay transfer error:', data);
@@ -98,13 +117,13 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, reference }), {
+    return new Response(JSON.stringify({ success: true, reference, data: data.data }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error in opay-withdrawal:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

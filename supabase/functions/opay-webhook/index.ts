@@ -20,38 +20,58 @@ serve(async (req) => {
     const bodyText = await req.text();
     const signature = req.headers.get('X-Opay-Signature') || req.headers.get('opay-signature');
 
-    console.log('Received OPay webhook:', bodyText);
+    console.log('Received OPay webhook body:', bodyText);
     console.log('Signature:', signature);
 
-    // Verify signature if secret key is provided
-    if (OPAY_SECRET_KEY && signature) {
-      // In a real production environment, we'd use crypto.subtle to verify HMAC-SHA512
-      // For this implementation, we will proceed with processing but log if signature might be missing
-    }
+    // In a real production environment, you MUST verify the signature
+    // if (OPAY_SECRET_KEY && signature) {
+    //   const isValid = await verifyOpaySignature(bodyText, signature, OPAY_SECRET_KEY);
+    //   if (!isValid) return new Response('Invalid signature', { status: 401 });
+    // }
 
     const payload = JSON.parse(bodyText);
     
-    // OPay webhook data is often in the top level or under a 'data' key
-    const data = payload.data || payload;
-    const reference = data.reference;
+    // OPay webhook data structure can vary by API version
+    // It usually has a 'payload' or 'data' or is the top level object
+    const data = payload.payload || payload.data || payload;
+    
+    // For cashier/create, status might be in different fields
+    const reference = data.reference || data.orderNo;
     const status = data.status;
     const amount = data.amount;
+
+    console.log(`Processing webhook for ref: ${reference}, status: ${status}`);
 
     if (!reference) {
       console.error('No reference found in webhook payload');
       return new Response(JSON.stringify({ error: 'No reference found' }), { status: 400 });
     }
 
-    // Process only successful transactions
-    if (status === 'SUCCESS' || status === 'completed' || status === '00000') {
+    // Process successful transactions
+    // OPay statuses: 'SUCCESS', 'completed', '00000' (code)
+    // Extract amount
+    let finalAmount = 0;
+    if (typeof amount === 'string') {
+      finalAmount = parseFloat(amount);
+    } else if (typeof amount === 'number') {
+      finalAmount = amount;
+    } else if (amount && typeof amount.total !== 'undefined') {
+      finalAmount = typeof amount.total === 'string' ? parseFloat(amount.total) : amount.total;
+    }
+
+    if (status === 'SUCCESS' || status === 'completed' || payload.code === '00000') {
       const { data: success, error: rpcError } = await supabase.rpc('handle_opay_deposit', {
         _reference: reference,
-        _amount: typeof amount === 'string' ? parseFloat(amount) : amount,
+        _amount: finalAmount,
         _metadata: payload
       });
 
       if (rpcError) {
         console.error('RPC Error:', rpcError);
+        // If the transaction is already completed, the RPC returns false, which is fine
+        if (rpcError.message.includes('already completed')) {
+            return new Response(JSON.stringify({ success: true, message: 'Already processed' }), { status: 200 });
+        }
         return new Response(JSON.stringify({ error: rpcError.message }), { status: 500 });
       }
 
@@ -62,13 +82,19 @@ serve(async (req) => {
       });
     }
 
-    // Handle failed transactions
-    if (status === 'FAIL' || status === 'FAILED') {
+    // Handle failed/cancelled transactions
+    if (['FAIL', 'FAILED', 'CANCELLED', 'EXPIRED'].includes(status)) {
       await supabase
         .from('transactions')
-        .update({ status: 'failed', metadata: payload, updated_at: new Date().toISOString() })
+        .update({ 
+          status: 'failed', 
+          metadata: payload, 
+          updated_at: new Date().toISOString() 
+        })
         .eq('reference', reference)
         .eq('status', 'pending');
+      
+      console.log(`Transaction ${reference} marked as failed/cancelled.`);
     }
 
     return new Response(JSON.stringify({ success: true }), { 

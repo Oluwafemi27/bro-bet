@@ -17,7 +17,14 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get the user from the authorization header
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
 
     if (authError || !user) {
@@ -27,7 +34,7 @@ serve(async (req) => {
       });
     }
 
-    const { amount, bankCode } = await req.json();
+    const { amount } = await req.json();
 
     if (!amount || amount <= 0) {
       return new Response(JSON.stringify({ error: 'Invalid amount' }), {
@@ -39,8 +46,17 @@ serve(async (req) => {
     // OPay configuration
     const OPAY_MERCHANT_ID = Deno.env.get('OPAY_MERCHANT_ID');
     const OPAY_PUBLIC_KEY = Deno.env.get('OPAY_PUBLIC_KEY');
+    const OPAY_SECRET_KEY = Deno.env.get('OPAY_SECRET_KEY');
     const OPAY_BASE_URL = Deno.env.get('OPAY_BASE_URL') || 'https://testapi.opaycheckout.com/api/v1';
     
+    if (!OPAY_MERCHANT_ID || !OPAY_PUBLIC_KEY || !OPAY_SECRET_KEY) {
+      console.error('Missing OPay configuration');
+      return new Response(JSON.stringify({ error: 'Payment gateway configuration missing' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Generate a unique reference
     const reference = `DEP_${user.id.substring(0, 8)}_${Date.now()}`;
 
@@ -67,39 +83,40 @@ serve(async (req) => {
       .single();
 
     // Prepare OPay request
+    // OPay Checkout API v1/cashier/create
     const opayPayload = {
       publicKey: OPAY_PUBLIC_KEY,
       merchantId: OPAY_MERCHANT_ID,
       amount: {
-        total: (amount * 100).toString(), // OPay amount is in kobo? Wait, let's check. Usually NGN is base unit for some, kobo for others. Paystack uses kobo. OPay documentation says minor units (kobo) for some APIs. 
-        // Actually OPay Checkout amount.total is in major units (NGN) but as a string?
-        // Let's assume NGN as string for Checkout.
-        total: amount.toString(),
+        total: parseFloat(amount).toFixed(2),
         currency: "NGN"
       },
       reference: reference,
-      returnUrl: `${req.headers.get('origin')}/account?status=success&ref=${reference}`,
+      returnUrl: `${req.headers.get('origin') || 'http://localhost:8080'}/account?status=success&ref=${reference}`,
       callbackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/opay-webhook`,
-      cancelUrl: `${req.headers.get('origin')}/account?status=cancelled`,
+      cancelUrl: `${req.headers.get('origin') || 'http://localhost:8080'}/account?status=cancelled`,
       userEmail: profile?.email || user.email,
-      userName: profile?.full_name || 'User',
+      userName: profile?.full_name || user.email?.split('@')[0] || 'User',
       productName: "Wallet Deposit",
       productDesc: "Bet Hub Pro Wallet Deposit",
     };
+
+    console.log('Sending request to OPay:', opayPayload);
 
     const response = await fetch(`${OPAY_BASE_URL}/cashier/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPAY_PUBLIC_KEY}`,
+        'Authorization': `Bearer ${OPAY_SECRET_KEY}`,
       },
       body: JSON.stringify(opayPayload),
     });
 
     const data = await response.json();
+    console.log('OPay response:', data);
 
     if (data.code !== '00000') {
-      console.error('OPay error:', data);
+      console.error('OPay error details:', data);
       return new Response(JSON.stringify({ error: data.message || 'OPay integration error' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -112,7 +129,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error in opay-create-payment:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
