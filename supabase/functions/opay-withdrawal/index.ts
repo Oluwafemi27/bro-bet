@@ -67,6 +67,7 @@ serve(async (req) => {
     const OPAY_MERCHANT_ID = Deno.env.get('OPAY_MERCHANT_ID');
     const OPAY_PUBLIC_KEY = Deno.env.get('OPAY_PUBLIC_KEY');
     const OPAY_SECRET_KEY = Deno.env.get('OPAY_SECRET_KEY');
+    // Default to production OPay API URL
     const OPAY_BASE_URL = Deno.env.get('OPAY_BASE_URL') || 'https://api.opaycheckout.com/api/v1';
 
     console.log('OPay configuration check:', {
@@ -78,6 +79,8 @@ serve(async (req) => {
 
     if (!OPAY_MERCHANT_ID || !OPAY_SECRET_KEY) {
       console.error('Missing OPay configuration for withdrawal - merchant ID or secret key not set');
+      // Refund user balance since we can't proceed
+      await supabase.rpc('refund_withdrawal', { _reference: reference });
       return new Response(JSON.stringify({ error: 'Withdrawal configuration missing' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -97,7 +100,14 @@ serve(async (req) => {
       callbackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/opay-webhook`,
     };
 
-    console.log('Initiating OPay transfer with merchant:', OPAY_MERCHANT_ID);
+    console.log('Initiating OPay transfer:', JSON.stringify({
+      url: `${OPAY_BASE_URL}/transfer/create`,
+      merchantId: OPAY_MERCHANT_ID,
+      reference,
+      amount: opayPayload.amount,
+      destBankCode: bankCode,
+      destBankAccount: accountNumber?.substring(0, 4) + '****',
+    }));
 
     let response;
     try {
@@ -113,6 +123,7 @@ serve(async (req) => {
       console.error('Network error calling OPay Transfer API:', {
         message: fetchError.message,
         cause: fetchError.cause,
+        stack: fetchError.stack,
       });
       // Refund the user balance if OPay API call fails
       await supabase.rpc('refund_withdrawal', { _reference: reference });
@@ -124,6 +135,36 @@ serve(async (req) => {
 
     console.log('OPay transfer HTTP response status:', response.status, response.statusText);
 
+    // Handle non-2xx HTTP responses from OPay
+    if (!response.ok) {
+      const responseBody = await response.text();
+      console.error('OPay transfer returned non-2xx status:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.substring(0, 2000),
+      });
+
+      // Try to extract OPay error message from response body
+      let opayMessage = `OPay returned HTTP ${response.status}`;
+      try {
+        const errorBody = JSON.parse(responseBody);
+        if (errorBody.message) {
+          opayMessage = errorBody.message;
+        }
+      } catch {
+        if (responseBody.length > 0 && responseBody.length < 500) {
+          opayMessage = responseBody;
+        }
+      }
+
+      // Refund the user balance since OPay rejected the request
+      await supabase.rpc('refund_withdrawal', { _reference: reference });
+      return new Response(JSON.stringify({ error: opayMessage }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     let data;
     try {
       data = await response.json();
@@ -131,7 +172,8 @@ serve(async (req) => {
       const textBody = await response.text();
       console.error('Failed to parse OPay transfer response as JSON:', {
         status: response.status,
-        body: textBody.substring(0, 1000),
+        body: textBody.substring(0, 2000),
+        parseError: parseError.message,
       });
       // Refund the user balance if OPay API response is invalid
       await supabase.rpc('refund_withdrawal', { _reference: reference });
@@ -141,10 +183,17 @@ serve(async (req) => {
       });
     }
 
-    console.log('OPay transfer response:', JSON.stringify({ ...data, code: data.code, message: data.message }));
+    console.log('OPay transfer response:', JSON.stringify({
+      code: data.code,
+      message: data.message,
+    }));
 
     if (data.code !== '00000') {
-      console.error('OPay transfer error:', data);
+      console.error('OPay transfer returned error code:', {
+        code: data.code,
+        message: data.message,
+        fullResponse: data,
+      });
       
       // Refund the user balance if OPay API call fails immediately
       await supabase.rpc('refund_withdrawal', {

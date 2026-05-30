@@ -7,6 +7,50 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+/**
+ * Helper to mark a transaction as failed in the database.
+ * Returns a JSON Response with the given status code and error message.
+ */
+async function markAsFailed(
+  supabase: any,
+  reference: string,
+  errorMessage: string,
+  details: Record<string, unknown>,
+  responseStatus: number,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  console.error('Marking transaction as failed:', {
+    reference,
+    errorMessage,
+    details,
+  });
+
+  try {
+    await supabase
+      .from('transactions')
+      .update({
+        status: 'failed',
+        metadata: { ...details, gateway: 'opay', error: errorMessage },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('reference', reference)
+      .eq('status', 'pending');
+  } catch (dbError) {
+    console.error('Failed to update transaction status in DB:', {
+      reference,
+      error: dbError.message,
+    });
+  }
+
+  return new Response(
+    JSON.stringify({ error: errorMessage, details }),
+    {
+      status: responseStatus,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    },
+  );
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -48,6 +92,7 @@ serve(async (req) => {
     const OPAY_MERCHANT_ID = Deno.env.get('OPAY_MERCHANT_ID');
     const OPAY_PUBLIC_KEY = Deno.env.get('OPAY_PUBLIC_KEY');
     const OPAY_SECRET_KEY = Deno.env.get('OPAY_SECRET_KEY');
+    // Default to production OPay API URL
     const OPAY_BASE_URL = Deno.env.get('OPAY_BASE_URL') || 'https://api.opaycheckout.com/api/v1';
 
     console.log('OPay configuration check:', {
@@ -109,7 +154,13 @@ serve(async (req) => {
       productDesc: "Bet Hub Pro Wallet Deposit",
     };
 
-    console.log('Sending request to OPay:', JSON.stringify({ ...opayPayload, publicKey: '***', merchantId: OPAY_MERCHANT_ID }));
+    console.log('Sending request to OPay:', JSON.stringify({
+      url: `${OPAY_BASE_URL}/cashier/create`,
+      hasPublicKey: !!opayPayload.publicKey,
+      merchantId: OPAY_MERCHANT_ID,
+      reference,
+      amount: opayPayload.amount,
+    }));
 
     let response;
     try {
@@ -125,24 +176,52 @@ serve(async (req) => {
       console.error('Network error calling OPay API:', {
         message: fetchError.message,
         cause: fetchError.cause,
+        stack: fetchError.stack,
       });
-      // Mark transaction as failed since the API call failed
-      await supabase
-        .from('transactions')
-        .update({ 
-          status: 'failed', 
-          metadata: { gateway: 'opay', error: fetchError.message },
-          updated_at: new Date().toISOString()
-        })
-        .eq('reference', reference)
-        .eq('status', 'pending');
-      return new Response(JSON.stringify({ error: `Failed to connect to payment gateway: ${fetchError.message}` }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return await markAsFailed(
+        supabase,
+        reference,
+        `Failed to connect to payment gateway: ${fetchError.message}`,
+        { networkError: fetchError.message, cause: fetchError.cause },
+        502,
+        corsHeaders,
+      );
     }
 
     console.log('OPay HTTP response status:', response.status, response.statusText);
+
+    // If OPay returned a non-2xx HTTP status, log the full body for debugging
+    if (!response.ok) {
+      const responseBody = await response.text();
+      console.error('OPay returned non-2xx status:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.substring(0, 2000),
+      });
+
+      // Try to extract OPay error message from response body
+      let opayMessage = `OPay returned HTTP ${response.status}`;
+      try {
+        const errorBody = JSON.parse(responseBody);
+        if (errorBody.message) {
+          opayMessage = errorBody.message;
+        }
+      } catch {
+        // Use the raw body if it's not JSON
+        if (responseBody.length > 0 && responseBody.length < 500) {
+          opayMessage = responseBody;
+        }
+      }
+
+      return await markAsFailed(
+        supabase,
+        reference,
+        opayMessage,
+        { httpStatus: response.status, httpStatusText: response.statusText, rawBody: responseBody.substring(0, 1000) },
+        502,
+        corsHeaders,
+      );
+    }
 
     let data;
     try {
@@ -151,44 +230,42 @@ serve(async (req) => {
       const textBody = await response.text();
       console.error('Failed to parse OPay response as JSON:', {
         status: response.status,
-        body: textBody.substring(0, 1000),
+        body: textBody.substring(0, 2000),
+        parseError: parseError.message,
       });
-      // Mark transaction as failed since the response was invalid
-      await supabase
-        .from('transactions')
-        .update({ 
-          status: 'failed', 
-          metadata: { gateway: 'opay', error: 'Invalid JSON response', httpStatus: response.status },
-          updated_at: new Date().toISOString()
-        })
-        .eq('reference', reference)
-        .eq('status', 'pending');
-      return new Response(JSON.stringify({ error: 'Invalid response from payment gateway' }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return await markAsFailed(
+        supabase,
+        reference,
+        'Invalid response from payment gateway',
+        { httpStatus: response.status, rawBody: textBody.substring(0, 1000), parseError: parseError.message },
+        502,
+        corsHeaders,
+      );
     }
 
-    console.log('OPay response data:', JSON.stringify({ ...data, publicKey: '***' }));
+    console.log('OPay response data:', JSON.stringify({
+      code: data.code,
+      message: data.message,
+      hasData: !!data.data,
+    }));
 
     if (data.code !== '00000') {
-      console.error('OPay error details:', data);
-      // Mark transaction as failed since OPay API returned an error
-      await supabase
-        .from('transactions')
-        .update({ 
-          status: 'failed', 
-          metadata: { ...data, gateway: 'opay', error: data.message },
-          updated_at: new Date().toISOString()
-        })
-        .eq('reference', reference)
-        .eq('status', 'pending');
-      return new Response(JSON.stringify({ error: data.message || 'OPay integration error' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      console.error('OPay returned error code:', {
+        code: data.code,
+        message: data.message,
+        fullResponse: data,
       });
+      return await markAsFailed(
+        supabase,
+        reference,
+        data.message || 'OPay integration error',
+        { opayCode: data.code, opayMessage: data.message, ...data },
+        400,
+        corsHeaders,
+      );
     }
 
+    // Return the OPay cashier data to the frontend (includes cashierUrl or virtualAccount)
     return new Response(JSON.stringify(data.data), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

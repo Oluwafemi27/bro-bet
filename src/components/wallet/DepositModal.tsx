@@ -54,7 +54,19 @@ export const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
         body: { amount: depositAmount },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle FunctionsHttpError - extract the actual error body from the response
+        let errorMessage = error.message;
+        try {
+          const errorBody = await error.context?.json();
+          if (errorBody?.error) {
+            errorMessage = errorBody.error;
+          }
+        } catch {
+          // If we can't parse the context, use the default error message
+        }
+        throw new Error(errorMessage);
+      }
 
       if (data?.virtualAccount) {
         setVirtualAccount(data.virtualAccount);
