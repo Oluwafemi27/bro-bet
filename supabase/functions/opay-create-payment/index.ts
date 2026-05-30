@@ -8,21 +8,40 @@ const corsHeaders = {
 };
 
 /**
+ * Execution steps for progress tracking.
+ * These are stored in transaction metadata to diagnose failures.
+ */
+const EXECUTION_STEPS = {
+  START: 'START',
+  AUTH_SUCCESS: 'AUTH_SUCCESS',
+  TX_CREATED: 'TX_CREATED',
+  OPAY_REQUEST_PREPARED: 'OPAY_REQUEST_PREPARED',
+  OPAY_API_RESPONDED: 'OPAY_API_RESPONDED',
+  SUCCESS: 'SUCCESS',
+} as const;
+
+type ExecutionStep = typeof EXECUTION_STEPS[keyof typeof EXECUTION_STEPS];
+
+/**
  * Helper to mark a transaction as failed in the database.
- * Returns a JSON Response with the given status code and error message.
+ * Preserves existing metadata progress and includes the final execution step.
  */
 async function markAsFailed(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   reference: string,
   errorMessage: string,
   details: Record<string, unknown>,
   responseStatus: number,
   corsHeaders: Record<string, string>,
+  finalStep?: ExecutionStep,
+  existingMetadata?: Record<string, unknown>,
 ): Promise<Response> {
   console.error('Marking transaction as failed:', {
     reference,
     errorMessage,
     details,
+    finalStep,
   });
 
   try {
@@ -30,7 +49,13 @@ async function markAsFailed(
       .from('transactions')
       .update({
         status: 'failed',
-        metadata: { ...details, gateway: 'opay', error: errorMessage },
+        metadata: {
+          ...existingMetadata,
+          gateway: 'opay',
+          error: errorMessage,
+          finalStep,
+          ...details,
+        },
         updated_at: new Date().toISOString(),
       })
       .eq('reference', reference)
@@ -51,10 +76,63 @@ async function markAsFailed(
   );
 }
 
+/**
+ * Logs a progress step to the transaction's metadata.
+ * Uses COALESCE to preserve existing metadata fields.
+ */
+async function logStep(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  reference: string,
+  step: ExecutionStep,
+  stepData: Record<string, unknown> = {},
+  existingMetadata?: Record<string, unknown>,
+): Promise<void> {
+  const timestamp = new Date().toISOString();
+  const stepEntry = { step, timestamp, ...stepData };
+
+  console.log(`[${step}] Transaction ${reference}:`, stepData);
+
+  try {
+    // Initialize steps array if it doesn't exist
+    const currentSteps = existingMetadata?.steps as Array<Record<string, unknown>> | undefined;
+    const stepsArray = currentSteps ? [...currentSteps, stepEntry] : [stepEntry];
+
+    await supabase
+      .from('transactions')
+      .update({
+        metadata: {
+          ...existingMetadata,
+          steps: stepsArray,
+          currentStep: step,
+        },
+        updated_at: timestamp,
+      })
+      .eq('reference', reference)
+      .eq('status', 'pending');
+  } catch (dbError) {
+    console.error(`Failed to log step ${step} for transaction ${reference}:`, {
+      error: dbError.message,
+    });
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Generate a unique trace_id for this request for correlation across logs
+  const traceId = `trace_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  console.log(`[${EXECUTION_STEPS.START}] Request received:`, {
+    traceId,
+    method: req.method,
+    contentType: req.headers.get('content-type'),
+  });
+
+  // Track the current transaction reference for the catch block
+  let currentReference: string | undefined;
+  let currentMetadata: Record<string, unknown> | undefined;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -64,6 +142,7 @@ serve(async (req) => {
     // Get the user from the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error(`[${EXECUTION_STEPS.START}] Missing authorization header:`, { traceId });
       return new Response(JSON.stringify({ error: 'No authorization header' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -73,16 +152,46 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
 
     if (authError || !user) {
+      console.error(`[AUTH] Authorization failed:`, {
+        traceId,
+        authError: authError?.message,
+        hasUser: !!user,
+      });
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log(`[${EXECUTION_STEPS.AUTH_SUCCESS}] User authenticated:`, {
+      traceId,
+      userId: user.id,
+      email: user.email,
+    });
+
     const { amount } = await req.json();
 
     if (!amount || amount <= 0) {
+      console.error(`[${EXECUTION_STEPS.AUTH_SUCCESS}] Invalid amount:`, {
+        traceId,
+        userId: user.id,
+        amount,
+      });
       return new Response(JSON.stringify({ error: 'Invalid amount' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Defensive check for NaN amounts
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount)) {
+      console.error(`[${EXECUTION_STEPS.AUTH_SUCCESS}] Amount is NaN:`, {
+        traceId,
+        userId: user.id,
+        rawAmount: amount,
+      });
+      return new Response(JSON.stringify({ error: 'Invalid amount format' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -96,14 +205,20 @@ serve(async (req) => {
     const OPAY_BASE_URL = Deno.env.get('OPAY_BASE_URL') || 'https://api.opaycheckout.com/api/v1';
 
     console.log('OPay configuration check:', {
+      traceId,
       hasMerchantId: !!OPAY_MERCHANT_ID,
       hasPublicKey: !!OPAY_PUBLIC_KEY,
       hasSecretKey: !!OPAY_SECRET_KEY,
       baseUrl: OPAY_BASE_URL,
     });
-    
+
     if (!OPAY_MERCHANT_ID || !OPAY_PUBLIC_KEY || !OPAY_SECRET_KEY) {
-      console.error('Missing OPay configuration - one or more required credentials are not set');
+      console.error('Missing OPay configuration - one or more required credentials are not set:', {
+        traceId,
+        hasMerchantId: !!OPAY_MERCHANT_ID,
+        hasPublicKey: !!OPAY_PUBLIC_KEY,
+        hasSecretKey: !!OPAY_SECRET_KEY,
+      });
       return new Response(JSON.stringify({ error: 'Payment gateway configuration missing' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -112,21 +227,46 @@ serve(async (req) => {
 
     // Generate a unique reference
     const reference = `DEP_${user.id.substring(0, 8)}_${Date.now()}`;
+    currentReference = reference;
 
     // Create a pending transaction in Supabase
+    const initialMetadata = {
+      gateway: 'opay',
+      traceId,
+      amount: parsedAmount,
+      currency: 'NGN',
+      steps: [],
+    };
+    currentMetadata = initialMetadata;
+
     const { error: txError } = await supabase.from('transactions').insert({
       user_id: user.id,
       type: 'deposit',
-      amount: amount,
+      amount: parsedAmount,
       status: 'pending',
       reference: reference,
-      metadata: { gateway: 'opay' }
+      metadata: initialMetadata,
     });
 
     if (txError) {
-      console.error('Error creating transaction:', JSON.stringify(txError));
+      console.error('Error creating transaction:', JSON.stringify(txError), { traceId });
       throw new Error(`Failed to create transaction record: ${txError.message || txError.details || JSON.stringify(txError)}`);
     }
+
+    console.log(`[${EXECUTION_STEPS.TX_CREATED}] Transaction created:`, {
+      traceId,
+      reference,
+      userId: user.id,
+      amount: parsedAmount,
+    });
+
+    // Log the step to metadata
+    await logStep(supabase, reference, EXECUTION_STEPS.TX_CREATED, {
+      userId: user.id,
+      amount: parsedAmount,
+      traceId,
+    }, currentMetadata);
+    currentMetadata = { ...currentMetadata, steps: [{ step: EXECUTION_STEPS.TX_CREATED, timestamp: new Date().toISOString() }] };
 
     // Fetch user profile for email and name
     const { data: profile } = await supabase
@@ -141,7 +281,7 @@ serve(async (req) => {
       publicKey: OPAY_PUBLIC_KEY,
       merchantId: OPAY_MERCHANT_ID,
       amount: {
-        total: parseFloat(amount).toFixed(2),
+        total: parsedAmount.toFixed(2),
         currency: "NGN"
       },
       reference: reference,
@@ -154,16 +294,36 @@ serve(async (req) => {
       productDesc: "Bet Hub Pro Wallet Deposit",
     };
 
-    console.log('Sending request to OPay:', JSON.stringify({
-      url: `${OPAY_BASE_URL}/cashier/create`,
-      hasPublicKey: !!opayPayload.publicKey,
-      merchantId: OPAY_MERCHANT_ID,
+    console.log(`[${EXECUTION_STEPS.OPAY_REQUEST_PREPARED}] OPay request prepared:`, {
+      traceId,
       reference,
-      amount: opayPayload.amount,
-    }));
+      url: `${OPAY_BASE_URL}/cashier/create`,
+      // Log payload WITHOUT the secret keys
+      payload: {
+        publicKey: opayPayload.publicKey ? '[SET]' : '[MISSING]',
+        merchantId: OPAY_MERCHANT_ID,
+        reference: opayPayload.reference,
+        amount: opayPayload.amount,
+        returnUrl: opayPayload.returnUrl,
+        callbackUrl: opayPayload.callbackUrl,
+        userEmail: opayPayload.userEmail,
+        userName: opayPayload.userName,
+        productName: opayPayload.productName,
+        productDesc: opayPayload.productDesc,
+      },
+    });
+
+    // Log step before API call
+    await logStep(supabase, reference, EXECUTION_STEPS.OPAY_REQUEST_PREPARED, {
+      url: `${OPAY_BASE_URL}/cashier/create`,
+      merchantId: OPAY_MERCHANT_ID,
+      amount: parsedAmount,
+      traceId,
+    }, currentMetadata);
 
     let response;
     try {
+      const startTime = Date.now();
       response = await fetch(`${OPAY_BASE_URL}/cashier/create`, {
         method: 'POST',
         headers: {
@@ -172,12 +332,32 @@ serve(async (req) => {
         },
         body: JSON.stringify(opayPayload),
       });
+      const duration = Date.now() - startTime;
+
+      console.log(`[${EXECUTION_STEPS.OPAY_API_RESPONDED}] OPay API responded:`, {
+        traceId,
+        reference,
+        status: response.status,
+        statusText: response.statusText,
+        durationMs: duration,
+      });
     } catch (fetchError) {
       console.error('Network error calling OPay API:', {
+        traceId,
+        reference,
         message: fetchError.message,
         cause: fetchError.cause,
         stack: fetchError.stack,
       });
+
+      // Log the failed step
+      await logStep(supabase, reference, EXECUTION_STEPS.OPAY_REQUEST_PREPARED, {
+        error: 'Network error',
+        message: fetchError.message,
+        cause: String(fetchError.cause),
+        traceId,
+      }, currentMetadata);
+
       return await markAsFailed(
         supabase,
         reference,
@@ -185,65 +365,138 @@ serve(async (req) => {
         { networkError: fetchError.message, cause: fetchError.cause },
         502,
         corsHeaders,
+        EXECUTION_STEPS.OPAY_REQUEST_PREPARED,
+        currentMetadata,
       );
     }
 
-    console.log('OPay HTTP response status:', response.status, response.statusText);
+    // Log the API response received step
+    await logStep(supabase, reference, EXECUTION_STEPS.OPAY_API_RESPONDED, {
+      httpStatus: response.status,
+      httpStatusText: response.statusText,
+      traceId,
+    }, currentMetadata);
+    currentMetadata = {
+      ...currentMetadata,
+      steps: [
+        ...(currentMetadata.steps || []),
+        { step: EXECUTION_STEPS.OPAY_API_RESPONDED, timestamp: new Date().toISOString(), httpStatus: response.status },
+      ],
+    };
+
+    // Capture raw response body FIRST - before any parsing attempts
+    let rawBody = '';
+    try {
+      rawBody = await response.text();
+    } catch (textError) {
+      console.error('Failed to read response body as text:', {
+        traceId,
+        reference,
+        error: textError.message,
+      });
+      return await markAsFailed(
+        supabase,
+        reference,
+        'Failed to read payment gateway response',
+        { httpStatus: response.status, textError: textError.message },
+        502,
+        corsHeaders,
+        EXECUTION_STEPS.OPAY_API_RESPONDED,
+        currentMetadata,
+      );
+    }
+
+    console.log(`[${EXECUTION_STEPS.OPAY_API_RESPONDED}] Raw response body:`, {
+      traceId,
+      reference,
+      httpStatus: response.status,
+      bodyLength: rawBody.length,
+      bodyPreview: rawBody.substring(0, 500),
+    });
 
     // If OPay returned a non-2xx HTTP status, log the full body for debugging
     if (!response.ok) {
-      const responseBody = await response.text();
       console.error('OPay returned non-2xx status:', {
+        traceId,
+        reference,
         status: response.status,
         statusText: response.statusText,
-        body: responseBody.substring(0, 2000),
+        body: rawBody.substring(0, 2000),
       });
 
-      // Try to extract OPay error message from response body
+      // Try to extract OPay error message from raw body
       let opayMessage = `OPay returned HTTP ${response.status}`;
       try {
-        const errorBody = JSON.parse(responseBody);
+        const errorBody = JSON.parse(rawBody);
         if (errorBody.message) {
           opayMessage = errorBody.message;
         }
       } catch {
         // Use the raw body if it's not JSON
-        if (responseBody.length > 0 && responseBody.length < 500) {
-          opayMessage = responseBody;
+        if (rawBody.length > 0 && rawBody.length < 500) {
+          opayMessage = rawBody;
         }
       }
+
+      // Log the failed step
+      await logStep(supabase, reference, EXECUTION_STEPS.OPAY_API_RESPONDED, {
+        error: 'Non-2xx HTTP status',
+        httpStatus: response.status,
+        httpStatusText: response.statusText,
+        rawBody: rawBody.substring(0, 1000),
+        opayMessage,
+        traceId,
+      }, currentMetadata);
 
       return await markAsFailed(
         supabase,
         reference,
         opayMessage,
-        { httpStatus: response.status, httpStatusText: response.statusText, rawBody: responseBody.substring(0, 1000) },
+        { httpStatus: response.status, httpStatusText: response.statusText, rawBody: rawBody.substring(0, 1000) },
         502,
         corsHeaders,
+        EXECUTION_STEPS.OPAY_API_RESPONDED,
+        currentMetadata,
       );
     }
 
+    // Now attempt to parse the raw body as JSON
     let data;
     try {
-      data = await response.json();
+      data = JSON.parse(rawBody);
     } catch (parseError) {
-      const textBody = await response.text();
       console.error('Failed to parse OPay response as JSON:', {
+        traceId,
+        reference,
         status: response.status,
-        body: textBody.substring(0, 2000),
+        body: rawBody.substring(0, 2000),
         parseError: parseError.message,
       });
+
+      // Log the failed step
+      await logStep(supabase, reference, EXECUTION_STEPS.OPAY_API_RESPONDED, {
+        error: 'JSON parse failed',
+        httpStatus: response.status,
+        rawBody: rawBody.substring(0, 1000),
+        parseError: parseError.message,
+        traceId,
+      }, currentMetadata);
+
       return await markAsFailed(
         supabase,
         reference,
         'Invalid response from payment gateway',
-        { httpStatus: response.status, rawBody: textBody.substring(0, 1000), parseError: parseError.message },
+        { httpStatus: response.status, rawBody: rawBody.substring(0, 1000), parseError: parseError.message },
         502,
         corsHeaders,
+        EXECUTION_STEPS.OPAY_API_RESPONDED,
+        currentMetadata,
       );
     }
 
     console.log('OPay response data:', JSON.stringify({
+      traceId,
+      reference,
       code: data.code,
       message: data.message,
       hasData: !!data.data,
@@ -251,10 +504,22 @@ serve(async (req) => {
 
     if (data.code !== '00000') {
       console.error('OPay returned error code:', {
+        traceId,
+        reference,
         code: data.code,
         message: data.message,
         fullResponse: data,
       });
+
+      // Log the failed step
+      await logStep(supabase, reference, EXECUTION_STEPS.OPAY_API_RESPONDED, {
+        error: 'OPay error code',
+        opayCode: data.code,
+        opayMessage: data.message,
+        fullResponse: data,
+        traceId,
+      }, currentMetadata);
+
       return await markAsFailed(
         supabase,
         reference,
@@ -262,8 +527,22 @@ serve(async (req) => {
         { opayCode: data.code, opayMessage: data.message, ...data },
         400,
         corsHeaders,
+        EXECUTION_STEPS.OPAY_API_RESPONDED,
+        currentMetadata,
       );
     }
+
+    // Log success step
+    await logStep(supabase, reference, EXECUTION_STEPS.SUCCESS, {
+      opayCode: data.code,
+      traceId,
+    }, currentMetadata);
+
+    console.log(`[${EXECUTION_STEPS.SUCCESS}] Payment initiated successfully:`, {
+      traceId,
+      reference,
+      opayCode: data.code,
+    });
 
     // Return the OPay cashier data to the frontend (includes cashierUrl or virtualAccount)
     return new Response(JSON.stringify(data.data), {
@@ -273,10 +552,33 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unexpected error in opay-create-payment:', {
+      traceId,
+      reference: currentReference,
       message: error.message,
       stack: error.stack,
       context: error,
     });
+
+    // If we have a transaction reference, record the failure in the database
+    if (currentReference) {
+      await logStep(supabase, currentReference, 'UNEXPECTED_ERROR', {
+        error: error.message,
+        stack: error.stack,
+        traceId,
+      }, currentMetadata);
+
+      await markAsFailed(
+        supabase,
+        currentReference,
+        error.message || 'Internal server error',
+        { unexpectedError: error.message, stack: error.stack },
+        500,
+        corsHeaders,
+        'UNEXPECTED_ERROR',
+        currentMetadata,
+      );
+    }
+
     return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
