@@ -75,15 +75,21 @@ serve(async (req) => {
 
       if (rpcError) {
         console.error('RPC Error:', rpcError);
-        // If the transaction is already completed, the RPC returns false, which is fine
-        if (rpcError.message.includes('already completed')) {
-            return new Response(JSON.stringify({ success: true, message: 'Already processed' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
         return new Response(JSON.stringify({ error: rpcError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      console.log(`Transaction ${reference} processed. Success: ${success}`);
-      return new Response(JSON.stringify({ success: true, processed: success }), { 
+      // If success is false, the transaction was already processed or doesn't exist
+      // In either case, acknowledge receipt with 200 to prevent OPay from retrying
+      if (success === false) {
+        console.log(`Transaction ${reference} was already processed or not found. Acknowledging.`);
+        return new Response(JSON.stringify({ success: true, message: 'Already processed' }), { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      console.log(`Transaction ${reference} processed successfully.`);
+      return new Response(JSON.stringify({ success: true, processed: true }), { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });

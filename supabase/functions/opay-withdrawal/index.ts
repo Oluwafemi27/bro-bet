@@ -67,7 +67,7 @@ serve(async (req) => {
     const OPAY_MERCHANT_ID = Deno.env.get('OPAY_MERCHANT_ID');
     const OPAY_PUBLIC_KEY = Deno.env.get('OPAY_PUBLIC_KEY');
     const OPAY_SECRET_KEY = Deno.env.get('OPAY_SECRET_KEY');
-    const OPAY_BASE_URL = Deno.env.get('OPAY_BASE_URL') || 'https://testapi.opaycheckout.com/api/v1';
+    const OPAY_BASE_URL = Deno.env.get('OPAY_BASE_URL') || 'https://api.opaycheckout.com/api/v1';
 
     console.log('OPay configuration check:', {
       hasMerchantId: !!OPAY_MERCHANT_ID,
