@@ -57,7 +57,11 @@ serve(async (req) => {
     });
 
     if (rpcError || !initiated) {
-      return new Response(JSON.stringify({ error: rpcError?.message || 'Insufficient balance or failed to initiate withdrawal' }), {
+      console.error('Error initiating withdrawal via RPC:', {
+        rpcError: JSON.stringify(rpcError),
+        initiated,
+      });
+      return new Response(JSON.stringify({ error: rpcError?.message || 'Insufficient balance or failed to initiate withdrawal', details: rpcError ? JSON.stringify(rpcError) : undefined }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -80,7 +84,10 @@ serve(async (req) => {
     if (!OPAY_MERCHANT_ID || !OPAY_SECRET_KEY) {
       console.error('Missing OPay configuration for withdrawal - merchant ID or secret key not set');
       // Refund user balance since we can't proceed
-      await supabase.rpc('refund_withdrawal', { _reference: reference });
+      const { error: refundError } = await supabase.rpc('refund_withdrawal', { _reference: reference });
+      if (refundError) {
+        console.error('Failed to refund withdrawal:', JSON.stringify(refundError));
+      }
       return new Response(JSON.stringify({ error: 'Withdrawal configuration missing' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -126,7 +133,10 @@ serve(async (req) => {
         stack: fetchError.stack,
       });
       // Refund the user balance if OPay API call fails
-      await supabase.rpc('refund_withdrawal', { _reference: reference });
+      const { error: refundError1 } = await supabase.rpc('refund_withdrawal', { _reference: reference });
+      if (refundError1) {
+        console.error('Failed to refund withdrawal after network error:', JSON.stringify(refundError1));
+      }
       return new Response(JSON.stringify({ error: `Failed to connect to payment gateway: ${fetchError.message}` }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -158,7 +168,10 @@ serve(async (req) => {
       }
 
       // Refund the user balance since OPay rejected the request
-      await supabase.rpc('refund_withdrawal', { _reference: reference });
+      const { error: refundError2 } = await supabase.rpc('refund_withdrawal', { _reference: reference });
+      if (refundError2) {
+        console.error('Failed to refund withdrawal after non-2xx response:', JSON.stringify(refundError2));
+      }
       return new Response(JSON.stringify({ error: opayMessage }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -176,7 +189,10 @@ serve(async (req) => {
         parseError: parseError.message,
       });
       // Refund the user balance if OPay API response is invalid
-      await supabase.rpc('refund_withdrawal', { _reference: reference });
+      const { error: refundError3 } = await supabase.rpc('refund_withdrawal', { _reference: reference });
+      if (refundError3) {
+        console.error('Failed to refund withdrawal after parse error:', JSON.stringify(refundError3));
+      }
       return new Response(JSON.stringify({ error: 'Invalid response from payment gateway' }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -196,9 +212,12 @@ serve(async (req) => {
       });
       
       // Refund the user balance if OPay API call fails immediately
-      await supabase.rpc('refund_withdrawal', {
+      const { error: refundError4 } = await supabase.rpc('refund_withdrawal', {
           _reference: reference
       });
+      if (refundError4) {
+        console.error('Failed to refund withdrawal after OPay error code:', JSON.stringify(refundError4));
+      }
 
       return new Response(JSON.stringify({ error: data.message || 'OPay transfer failed' }), {
         status: 400,

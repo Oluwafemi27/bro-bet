@@ -74,8 +74,8 @@ serve(async (req) => {
       });
 
       if (rpcError) {
-        console.error('RPC Error:', rpcError);
-        return new Response(JSON.stringify({ error: rpcError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        console.error('RPC Error in handle_opay_deposit:', JSON.stringify(rpcError));
+        return new Response(JSON.stringify({ error: rpcError.message, details: JSON.stringify(rpcError) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       // If success is false, the transaction was already processed or doesn't exist
@@ -97,7 +97,7 @@ serve(async (req) => {
 
     // Handle failed/cancelled transactions
     if (['FAIL', 'FAILED', 'CANCELLED', 'EXPIRED'].includes(status)) {
-      await supabase
+      const { error: updateError } = await supabase
         .from('transactions')
         .update({ 
           status: 'failed', 
@@ -107,7 +107,15 @@ serve(async (req) => {
         .eq('reference', reference)
         .eq('status', 'pending');
       
-      console.log(`Transaction ${reference} marked as failed/cancelled.`);
+      if (updateError) {
+        console.error('Failed to update transaction to failed/cancelled:', {
+          reference,
+          status,
+          error: JSON.stringify(updateError),
+        });
+      } else {
+        console.log(`Transaction ${reference} marked as failed/cancelled.`);
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), { 

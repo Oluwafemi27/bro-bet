@@ -124,8 +124,8 @@ serve(async (req) => {
     });
 
     if (txError) {
-      console.error('Error creating transaction:', txError);
-      throw new Error('Failed to create transaction record');
+      console.error('Error creating transaction:', JSON.stringify(txError));
+      throw new Error(`Failed to create transaction record: ${txError.message || txError.details || JSON.stringify(txError)}`);
     }
 
     // Fetch user profile for email and name

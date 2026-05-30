@@ -688,7 +688,11 @@ export type Database = {
           rejected_reason: string | null
           status: string | null
           type: string
+          updated_at: string | null
           user_id: string
+          bank_name: string | null
+          account_number: string | null
+          metadata: Json | null
         }
         Insert: {
           amount: number
@@ -701,7 +705,11 @@ export type Database = {
           rejected_reason?: string | null
           status?: string | null
           type: string
+          updated_at?: string | null
           user_id: string
+          bank_name?: string | null
+          account_number?: string | null
+          metadata?: Json | null
         }
         Update: {
           amount?: number
@@ -714,11 +722,59 @@ export type Database = {
           rejected_reason?: string | null
           status?: string | null
           type?: string
+          updated_at?: string | null
           user_id?: string
+          bank_name?: string | null
+          account_number?: string | null
+          metadata?: Json | null
         }
         Relationships: [
           {
             foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          id: string
+          user_id: string
+          account_number: string | null
+          bank_name: string | null
+          account_name: string | null
+          provider: string | null
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          account_number?: string | null
+          bank_name?: string | null
+          account_name?: string | null
+          provider?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          account_number?: string | null
+          bank_name?: string | null
+          account_name?: string | null
+          provider?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
