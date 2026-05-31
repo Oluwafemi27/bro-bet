@@ -154,37 +154,51 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get the user from the authorization header
+    // Parse request body early
+    const body = await req.json();
+    const { amount, userId: bodyUserId, email: bodyEmail, fullName, phone } = body;
+
+    // Get the user from the authorization header or body
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error(`[${EXECUTION_STEPS.START}] Missing authorization header:`, { traceId });
-      return new Response(JSON.stringify({ error: 'No authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    let user;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-
-    if (authError || !user) {
-      console.error(`[AUTH] Authorization failed:`, {
+    if (authHeader) {
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+      if (authError || !authUser) {
+        console.error(`[AUTH] Authorization failed:`, {
+          traceId,
+          authError: authError?.message,
+          hasUser: !!authUser,
+        });
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      user = authUser;
+    } else if (bodyUserId) {
+      // Fallback to body userId if no auth header (as requested)
+      user = { id: bodyUserId, email: bodyEmail };
+      console.log(`[AUTH] Using user details from body:`, {
         traceId,
-        authError: authError?.message,
-        hasUser: !!user,
+        userId: user.id,
+        email: user.email,
       });
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    }
+
+    if (!user) {
+      console.error(`[${EXECUTION_STEPS.START}] Missing authentication:`, { traceId });
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`[${EXECUTION_STEPS.AUTH_SUCCESS}] User authenticated:`, {
+    console.log(`[${EXECUTION_STEPS.AUTH_SUCCESS}] User identified:`, {
       traceId,
       userId: user.id,
       email: user.email,
     });
-
-    const { amount } = await req.json();
 
     if (!amount || amount <= 0) {
       console.error(`[${EXECUTION_STEPS.AUTH_SUCCESS}] Invalid amount:`, {
@@ -295,12 +309,20 @@ serve(async (req) => {
     }, currentMetadata);
     currentMetadata = { ...currentMetadata, steps: [{ step: EXECUTION_STEPS.TX_CREATED, timestamp: new Date().toISOString() }] };
 
-    // Fetch user profile for email and name
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', user.id)
-      .single();
+    // Use user details from body or fetch from profile
+    let finalEmail = bodyEmail || user.email;
+    let finalFullName = fullName;
+
+    if (!finalFullName) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+      
+      finalFullName = profile?.full_name;
+      if (!finalEmail) finalEmail = profile?.email;
+    }
 
     // Prepare OPay request
     // OPay Checkout API v1/cashier/create
@@ -315,8 +337,9 @@ serve(async (req) => {
       returnUrl: `${req.headers.get('origin') || 'http://localhost:8080'}/account?status=success&ref=${reference}`,
       callbackUrl: `${Deno.env.get('SUPABASE_URL')}/functions/v1/opay-webhook`,
       cancelUrl: `${req.headers.get('origin') || 'http://localhost:8080'}/account?status=cancelled`,
-      userEmail: profile?.email || user.email,
-      userName: profile?.full_name || user.email?.split('@')[0] || 'User',
+      userEmail: finalEmail || 'user@example.com',
+      userName: finalFullName || finalEmail?.split('@')[0] || 'User',
+      userPhone: phone || undefined,
       productName: "Wallet Deposit",
       productDesc: "Bet Hub Pro Wallet Deposit",
     };

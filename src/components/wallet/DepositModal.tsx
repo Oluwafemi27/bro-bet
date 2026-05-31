@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, ExternalLink, Copy, Clock } from "lucide-react";
 
 interface DepositModalProps {
@@ -26,6 +26,7 @@ export const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccountInfo | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const { toast } = useToast();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     let timer: number;
@@ -48,44 +49,55 @@ export const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to make a deposit.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("opay-create-payment", {
-        body: { amount: depositAmount },
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/opay-create-payment`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: depositAmount,
+          userId: user.id,
+          email: user.email,
+          fullName: profile?.full_name,
+          phone: profile?.phone,
+        }),
       });
 
-      if (error) {
-        // Handle FunctionsHttpError - extract the actual error body from the response
-        let errorMessage = error.message;
-        try {
-          const errorBody = await error.context?.json();
-          if (errorBody?.error) {
-            errorMessage = errorBody.error;
-          }
-        } catch {
-          // If we can't parse the context, use the default error message
-        }
-        throw new Error(errorMessage);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to initiate payment");
       }
 
+      const data = await response.json();
+
       if (data?.virtualAccount) {
-        setVirtualAccount(data.virtualAccount);
-        setTimeLeft(data.virtualAccount.expirySeconds || 1800);
+        setVirtualAccount({
+          ...data.virtualAccount,
+          amount: data.virtualAccount.amount || depositAmount,
+        });
+        setTimeLeft(1800); // 30 minutes
       } else if (data?.cashierUrl) {
         window.location.href = data.cashierUrl;
       } else {
         throw new Error("Failed to initiate payment");
       }
-    } catch (error: any) {
-      console.error("Deposit error details:", {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        context: error
-      });
+    } catch (error: unknown) {
+      console.error("Deposit error details:", error);
       toast({
         title: "Deposit failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -109,6 +121,7 @@ export const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
       if (!open) {
         setVirtualAccount(null);
         setAmount("");
+        setTimeLeft(0);
       }
       onClose();
     }}>
