@@ -50,30 +50,31 @@ export const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("opay-create-payment", {
-        body: { amount: depositAmount },
-      });
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (error) {
-        // Handle FunctionsHttpError - extract the actual error body from the response
-        let errorMessage = error.message;
-        try {
-          const errorBody = await error.context?.json();
-          if (errorBody?.error) {
-            errorMessage = errorBody.error;
-          }
-        } catch {
-          // If we can't parse the context, use the default error message
+      const response = await fetch(
+        'https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/opay-create-payment',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amount,
+            userId: user.id,
+            userEmail: user.email,
+            userName: user.user_metadata?.full_name || user.email
+          })
         }
-        throw new Error(errorMessage);
-      }
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Deposit failed');
 
       // Map OPay response fields to the VirtualAccountInfo interface
       setVirtualAccount({
-        bankAccountNumber: data.bankAccountNo || data.bankAccountNumber || "",
-        bankName: data.bankName || "OPay",
-        bankAccountName: data.accountName || data.bankAccountName || "",
-        amount: data.amount || depositAmount,
+        bankAccountNumber: data.bankAccountNumber,
+        bankName: data.bankName,
+        bankAccountName: data.bankAccountName,
+        amount: data.amount,
         expiresIn: 1800,
       });
       setTimeLeft(1800);
