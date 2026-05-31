@@ -50,39 +50,38 @@ export const DepositModal = ({ isOpen, onClose }: DepositModalProps) => {
 
     setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.functions.invoke("opay-create-payment", {
+        body: { amount: depositAmount },
+      });
 
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      const response = await fetch(
-        'https://wfyisqyqlijmaifunhqv.supabase.co/functions/v1/opay-create-payment',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            amount: depositAmount,
-            userId: user.id,
-            userEmail: user.email,
-            userName: user.user_metadata?.full_name || user.email
-          })
+      if (error) {
+        // Handle FunctionsHttpError - extract the actual error body from the response
+        let errorMessage = error.message;
+        try {
+          const errorBody = await error.context?.json();
+          if (errorBody?.error) {
+            errorMessage = errorBody.error;
+          }
+        } catch {
+          // If we can't parse the context, use the default error message
         }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Deposit failed');
+        throw new Error(errorMessage);
       }
 
-      setVirtualAccount(data);
-      setTimeLeft(data.expiresIn || 1800);
+      // Map OPay response fields to the VirtualAccountInfo interface
+      setVirtualAccount({
+        bankAccountNumber: data.bankAccountNo || data.bankAccountNumber || "",
+        bankName: data.bankName || "OPay",
+        bankAccountName: data.accountName || data.bankAccountName || "",
+        amount: data.amount || depositAmount,
+        expiresIn: 1800,
+      });
+      setTimeLeft(1800);
     } catch (error: unknown) {
-      console.error("Deposit error details:", error);
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred. Please try again.";
+      console.error("Deposit error details:", {
+        message: errorMessage,
+      });
       toast({
         title: "Deposit failed",
         description: errorMessage,
