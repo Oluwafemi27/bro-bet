@@ -42,7 +42,11 @@ import Odds from "./pages/admin/sportsbook/Odds";
 import Markets from "./pages/admin/sportsbook/Markets";
 
 // Bets
-import BetsAll from "./pages/admin/bets/BetsAll";
+import AllBets from "./pages/admin/bets/AllBets";
+import LiveBets from "./pages/admin/bets/LiveBets";
+import SettledBets from "./pages/admin/bets/SettledBets";
+import VoidedBets from "./pages/admin/bets/VoidedBets";
+import LiabilityBets from "./pages/admin/bets/LiabilityBets";
 
 // Finance
 import Deposits from "./pages/admin/finance/Deposits";
@@ -52,10 +56,10 @@ import Wallets from "./pages/admin/finance/Wallets";
 import Reconciliation from "./pages/admin/finance/Reconciliation";
 
 // Bonuses
-import PromotionsModule from "./pages/admin/bonuses/PromotionsModule";
-import BonusRules from "./pages/admin/bonuses/BonusRules";
-import Freebets from "./pages/admin/bonuses/Freebets";
-import Campaigns from "./pages/admin/bonuses/Campaigns";
+import PromotionsPage from "./pages/admin/bonuses/PromotionsPage";
+import BonusRulesPage from "./pages/admin/bonuses/BonusRulesPage";
+import FreebetsPage from "./pages/admin/bonuses/FreebetsPage";
+import CampaignsPage from "./pages/admin/bonuses/CampaignsPage";
 
 // Risk
 import RiskAlerts from "./pages/admin/risk/RiskAlerts";
@@ -70,23 +74,37 @@ import Notifications from "./pages/admin/cms/Notifications";
 
 // Reports
 import GGRReport from "./pages/admin/reports/GGRReport";
+import UsersReport from "./pages/admin/reports/UsersReport";
+import SportsReport from "./pages/admin/reports/SportsReport";
+import AgentsReport from "./pages/admin/reports/AgentsReport";
 
 // Settings
 import GeneralSettings from "./pages/admin/settings/GeneralSettings";
+import BettingLimitsSettings from "./pages/admin/settings/BettingLimitsSettings";
+import IntegrationsSettings from "./pages/admin/settings/IntegrationsSettings";
+import StaffSettings from "./pages/admin/settings/StaffSettings";
+import AuditLogsSettings from "./pages/admin/settings/AuditLogsSettings";
 
 // Casino
-import CasinoGames from "./pages/admin/casino/CasinoGames";
-import Providers from "./pages/admin/casino/Providers";
+import ProvidersPage from "./pages/admin/casino/ProvidersPage";
+import GamesPage from "./pages/admin/casino/GamesPage";
+import RoundsPage from "./pages/admin/casino/RoundsPage";
 
 // Compliance
-import ResponsibleGaming from "./pages/admin/compliance/ResponsibleGaming";
-import KYCManagement from "./pages/admin/compliance/KYCManagement";
+import KYCPage from "./pages/admin/compliance/KYCPage";
+import LogsPage from "./pages/admin/compliance/LogsPage";
+import RGPage from "./pages/admin/compliance/RGPage";
+import ExclusionsPage from "./pages/admin/compliance/ExclusionsPage";
 
 // Agents
-import AgentList from "./pages/admin/agents/AgentList";
+import ListPage from "./pages/admin/agents/ListPage";
+import CommissionsPage from "./pages/admin/agents/CommissionsPage";
+import PlayersPage from "./pages/admin/agents/PlayersPage";
 
 // Support
-import SupportTickets from "./pages/admin/support/SupportTickets";
+import TicketsPage from "./pages/admin/support/TicketsPage";
+import ChatPage from "./pages/admin/support/ChatPage";
+import AnnouncementsPage from "./pages/admin/support/AnnouncementsPage";
 
 const queryClient = new QueryClient();
 
@@ -138,11 +156,11 @@ const App = () => (
                   <Route path="sportsbook/markets" element={<Markets />} />
 
                   {/* Bet Management */}
-                  <Route path="bets/all" element={<BetsAll />} />
-                  <Route path="bets/live" element={<BetsAll />} />
-                  <Route path="bets/settled" element={<BetsAll />} />
-                  <Route path="bets/voided" element={<BetsAll />} />
-                  <Route path="bets/liability" element={<BetsAll />} />
+                  <Route path="bets/all" element={<AllBets />} />
+                  <Route path="bets/live" element={<LiveBets />} />
+                  <Route path="bets/settled" element={<SettledBets />} />
+                  <Route path="bets/voided" element={<VoidedBets />} />
+                  <Route path="bets/liability" element={<LiabilityBets />} />
 
                   {/* Finance Management */}
                   <Route path="finance/deposits" element={<Deposits />} />
@@ -152,15 +170,15 @@ const App = () => (
                   <Route path="finance/reconciliation" element={<Reconciliation />} />
 
                   {/* Casino Management */}
-                  <Route path="casino/providers" element={<CasinoGames />} />
-                  <Route path="casino/games" element={<CasinoGames />} />
-                  <Route path="casino/rounds" element={<CasinoGames />} />
+                  <Route path="casino/providers" element={<ProvidersPage />} />
+                  <Route path="casino/games" element={<GamesPage />} />
+                  <Route path="casino/rounds" element={<RoundsPage />} />
 
                   {/* Bonuses & Promotions */}
-                  <Route path="bonuses/promotions" element={<PromotionsModule />} />
-                  <Route path="bonuses/rules" element={<PromotionsModule />} />
-                  <Route path="bonuses/freebets" element={<PromotionsModule />} />
-                  <Route path="bonuses/campaigns" element={<PromotionsModule />} />
+                  <Route path="bonuses/promotions" element={<PromotionsPage />} />
+                  <Route path="bonuses/rules" element={<BonusRulesPage />} />
+                  <Route path="bonuses/freebets" element={<FreebetsPage />} />
+                  <Route path="bonuses/campaigns" element={<CampaignsPage />} />
 
                   {/* Risk & Fraud */}
                   <Route path="risk/alerts" element={<RiskAlerts />} />
@@ -175,32 +193,32 @@ const App = () => (
 
                   {/* Reports & Analytics */}
                   <Route path="reports/ggr" element={<GGRReport />} />
-                  <Route path="reports/users" element={<GGRReport />} />
-                  <Route path="reports/sports" element={<GGRReport />} />
-                  <Route path="reports/agents" element={<GGRReport />} />
+                  <Route path="reports/users" element={<UsersReport />} />
+                  <Route path="reports/sports" element={<SportsReport />} />
+                  <Route path="reports/agents" element={<AgentsReport />} />
 
                   {/* Agents & Affiliates */}
-                  <Route path="agents/list" element={<AgentList />} />
-                  <Route path="agents/commissions" element={<AgentList />} />
-                  <Route path="agents/players" element={<AgentList />} />
+                  <Route path="agents/list" element={<ListPage />} />
+                  <Route path="agents/commissions" element={<CommissionsPage />} />
+                  <Route path="agents/players" element={<PlayersPage />} />
 
                   {/* Settings */}
                   <Route path="settings/general" element={<GeneralSettings />} />
-                  <Route path="settings/limits" element={<GeneralSettings />} />
-                  <Route path="settings/integrations" element={<GeneralSettings />} />
-                  <Route path="settings/staff" element={<GeneralSettings />} />
-                  <Route path="settings/logs" element={<GeneralSettings />} />
+                  <Route path="settings/limits" element={<BettingLimitsSettings />} />
+                  <Route path="settings/integrations" element={<IntegrationsSettings />} />
+                  <Route path="settings/staff" element={<StaffSettings />} />
+                  <Route path="settings/logs" element={<AuditLogsSettings />} />
 
                   {/* Compliance */}
-                  <Route path="compliance/kyc" element={<KYCManagement />} />
-                  <Route path="compliance/logs" element={<ResponsibleGaming />} />
-                  <Route path="compliance/rg" element={<ResponsibleGaming />} />
-                  <Route path="compliance/exclusions" element={<ResponsibleGaming />} />
+                  <Route path="compliance/kyc" element={<KYCPage />} />
+                  <Route path="compliance/logs" element={<LogsPage />} />
+                  <Route path="compliance/rg" element={<RGPage />} />
+                  <Route path="compliance/exclusions" element={<ExclusionsPage />} />
 
                   {/* Support */}
-                  <Route path="support/tickets" element={<SupportTickets />} />
-                  <Route path="support/chat" element={<SupportTickets />} />
-                  <Route path="support/announcements" element={<SupportTickets />} />
+                  <Route path="support/tickets" element={<TicketsPage />} />
+                  <Route path="support/chat" element={<ChatPage />} />
+                  <Route path="support/announcements" element={<AnnouncementsPage />} />
                 </Route>
 
                 <Route path="*" element={<NotFound />} />

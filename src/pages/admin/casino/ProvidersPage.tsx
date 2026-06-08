@@ -1,28 +1,25 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
 
-const RiskAlerts = () => {
+const ProvidersPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl font-bold">Risk & Fraud Alerts</h2>
-        <Button variant="outline" className="gap-2">
-          <Search className="h-4 w-4" /> Filter Alerts
-        </Button>
+        <h2 className="font-display text-2xl font-bold">Casino Providers</h2>
+        <Button>Add Provider</Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Alert Queue</CardTitle>
+          <CardTitle>Integrated Providers</CardTitle>
         </CardHeader>
         <CardContent className="h-80 flex items-center justify-center text-muted-foreground">
-          <p>No risk alerts at this time.</p>
+          <p>No casino providers configured yet.</p>
         </CardContent>
       </Card>
     </div>
   );
 };
 
-export default RiskAlerts;
+export default ProvidersPage;
