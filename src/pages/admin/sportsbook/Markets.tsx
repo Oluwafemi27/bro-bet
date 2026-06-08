@@ -41,14 +41,7 @@ const Markets: React.FC = () => {
 
   const loadMarkets = async () => {
     try {
-      const mockMarkets: Market[] = [
-        { id: "1", name: "1x2", sport: "Football", match_count: 450, min_stake: 100, max_stake: 50000000, enabled: true },
-        { id: "2", name: "Over/Under", sport: "Football", match_count: 450, min_stake: 100, max_stake: 50000000, enabled: true },
-        { id: "3", name: "Correct Score", sport: "Football", match_count: 450, min_stake: 100, max_stake: 10000000, enabled: true },
-        { id: "4", name: "First Goal Scorer", sport: "Football", match_count: 420, min_stake: 100, max_stake: 5000000, enabled: true },
-        { id: "5", name: "Corners", sport: "Football", match_count: 350, min_stake: 100, max_stake: 20000000, enabled: false },
-      ];
-      setMarkets(mockMarkets);
+      setMarkets([]);
     } catch (err: any) {
       toast({ title: "Error loading markets", variant: "destructive" });
     } finally {

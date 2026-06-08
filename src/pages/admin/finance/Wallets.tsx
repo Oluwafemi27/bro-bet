@@ -33,13 +33,7 @@ const Wallets: React.FC = () => {
 
   const loadWallets = async () => {
     try {
-      const mockWallets: UserWallet[] = [
-        { id: "1", user_id: "user-1", username: "john_doe", balance: 250000, pending: 0, locked: 0, status: "active" },
-        { id: "2", user_id: "user-2", username: "jane_smith", balance: 1500000, pending: 50000, locked: 0, status: "active" },
-        { id: "3", user_id: "user-3", username: "mike_wilson", balance: 500000, pending: 0, locked: 100000, status: "active" },
-        { id: "4", user_id: "user-4", username: "sarah_johnson", balance: 0, pending: 0, locked: 0, status: "suspended" },
-      ];
-      setWallets(mockWallets);
+      setWallets([]);
     } catch (err: any) {
       toast({ title: "Error loading wallets", variant: "destructive" });
     } finally {

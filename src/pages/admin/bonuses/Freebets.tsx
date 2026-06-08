@@ -25,12 +25,7 @@ const Freebets: React.FC = () => {
 
   const loadFreebets = async () => {
     try {
-      const mockFreebets: Freebet[] = [
-        { id: "1", user_id: "user-1", amount: 5000, min_odds: 1.5, expiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), status: "active" },
-        { id: "2", user_id: "user-2", amount: 10000, min_odds: 2.0, expiry: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), status: "active" },
-        { id: "3", user_id: "user-3", amount: 2500, min_odds: 1.2, expiry: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), status: "expired" },
-      ];
-      setFreebets(mockFreebets);
+      setFreebets([]);
     } catch (err: any) {
       toast({ title: "Error loading freebets", variant: "destructive" });
     } finally {
@@ -62,30 +57,38 @@ const Freebets: React.FC = () => {
           <CardTitle className="text-lg font-bold">Active Free Bets</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="space-y-2 p-6">
-            {freebets.map((freebet) => (
-              <div key={freebet.id} className="flex items-center justify-between p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all">
-                <div>
-                  <p className="font-semibold text-foreground">₦{freebet.amount.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{freebet.user_id} • Min Odds: {freebet.min_odds}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Expires: {new Date(freebet.expiry).toLocaleDateString()}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full font-bold border ${
-                      freebet.status === "active"
-                        ? "bg-green-100/30 text-green-700 border-green-200/50"
-                        : "bg-red-100/30 text-red-700 border-red-200/50"
-                    }`}>
-                      {freebet.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <Button size="sm" variant="destructive" className="h-8 gap-1.5">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+          <div className="p-6">
+            {freebets.length === 0 ? (
+              <div className="text-center text-muted-foreground">
+                <p>No free bets awarded yet. Award one to get started.</p>
               </div>
-            ))}
+            ) : (
+              <div className="space-y-2">
+                {freebets.map((freebet) => (
+                  <div key={freebet.id} className="flex items-center justify-between p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all">
+                    <div>
+                      <p className="font-semibold text-foreground">₦{freebet.amount.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{freebet.user_id} • Min Odds: {freebet.min_odds}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Expires: {new Date(freebet.expiry).toLocaleDateString()}</p>
+                        <span className={`text-xs px-2 py-1 rounded-full font-bold border ${
+                          freebet.status === "active"
+                            ? "bg-green-100/30 text-green-700 border-green-200/50"
+                            : "bg-red-100/30 text-red-700 border-red-200/50"
+                        }`}>
+                          {freebet.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <Button size="sm" variant="destructive" className="h-8 gap-1.5">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

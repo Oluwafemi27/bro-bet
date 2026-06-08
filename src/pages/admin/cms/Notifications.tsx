@@ -25,12 +25,7 @@ const Notifications: React.FC = () => {
 
   const loadNotifications = async () => {
     try {
-      const mockNotifications: Notification[] = [
-        { id: "1", title: "System Maintenance Alert", message: "Scheduled maintenance on April 26 at 2AM", recipient: "All Users", status: "sent", sent_at: new Date().toISOString() },
-        { id: "2", title: "Bonus Available", message: "Your bonus has been credited", recipient: "VIP Users", status: "sent", sent_at: new Date().toISOString() },
-        { id: "3", title: "New Payment Method", message: "We now accept cryptocurrency", recipient: "Scheduled", status: "draft", sent_at: new Date().toISOString() },
-      ];
-      setNotifications(mockNotifications);
+      setNotifications([]);
     } catch (err: any) {
       toast({ title: "Error loading notifications", variant: "destructive" });
     } finally {
@@ -62,34 +57,40 @@ const Notifications: React.FC = () => {
           <CardTitle className="text-lg font-bold">Push & In-App Messages</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="space-y-2 p-6">
-            {notifications.map((notif) => (
-              <div key={notif.id} className="flex items-center justify-between p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all">
-                <div className="flex-1">
-                  <p className="font-semibold text-foreground">{notif.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{notif.message}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Target: {notif.recipient}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-bold border whitespace-nowrap ${
-                    notif.status === "sent"
-                      ? "bg-green-100/30 text-green-700 border-green-200/50"
-                      : "bg-blue-100/30 text-blue-700 border-blue-200/50"
-                  }`}>
-                    {notif.status.toUpperCase()}
-                  </span>
-                  <Button size="sm" variant="outline" className="h-8 gap-1.5">
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  {notif.status === "draft" && (
-                    <Button size="sm" variant="default" className="h-8 gap-1.5">
-                      <Send className="h-3.5 w-3.5" />
-                      Send
-                    </Button>
-                  )}
-                </div>
+          <div className="p-6 text-center text-muted-foreground">
+            {notifications.length === 0 ? (
+              <p>No notifications sent yet. Create one to get started.</p>
+            ) : (
+              <div className="space-y-2">
+                {notifications.map((notif) => (
+                  <div key={notif.id} className="flex items-center justify-between p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all">
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">{notif.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{notif.message}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Target: {notif.recipient}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs px-2 py-1 rounded-full font-bold border whitespace-nowrap ${
+                        notif.status === "sent"
+                          ? "bg-green-100/30 text-green-700 border-green-200/50"
+                          : "bg-blue-100/30 text-blue-700 border-blue-200/50"
+                      }`}>
+                        {notif.status.toUpperCase()}
+                      </span>
+                      <Button size="sm" variant="outline" className="h-8 gap-1.5">
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      {notif.status === "draft" && (
+                        <Button size="sm" variant="default" className="h-8 gap-1.5">
+                          <Send className="h-3.5 w-3.5" />
+                          Send
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

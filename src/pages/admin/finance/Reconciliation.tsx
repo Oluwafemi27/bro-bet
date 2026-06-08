@@ -25,13 +25,7 @@ const Reconciliation: React.FC = () => {
 
   const loadReconciliation = async () => {
     try {
-      const mockReports: ReconciliationReport[] = [
-        { period: "April 26, 2024", system_total: 5250000, bank_total: 5250000, variance: 0, status: "reconciled" },
-        { period: "April 25, 2024", system_total: 3780000, bank_total: 3780000, variance: 0, status: "reconciled" },
-        { period: "April 24, 2024", system_total: 4920000, bank_total: 4915000, variance: -5000, status: "variance" },
-        { period: "April 23, 2024", system_total: 2100000, bank_total: 2100000, variance: 0, status: "reconciled" },
-      ];
-      setReports(mockReports);
+      setReports([]);
     } catch (err: any) {
       toast({ title: "Error loading reconciliation", variant: "destructive" });
     } finally {
@@ -114,44 +108,50 @@ const Reconciliation: React.FC = () => {
           <CardTitle className="text-lg font-bold">Reconciliation History</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="space-y-3 p-6">
-            {reports.map((report, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all duration-200"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    {report.status === "reconciled" ? (
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <AlertCircle className="h-5 w-5 text-amber-600" />
-                    )}
-                    <div>
-                      <p className="font-semibold text-foreground">{report.period}</p>
-                      <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                        <span>System: ₦{report.system_total.toLocaleString()}</span>
-                        <span>Bank: ₦{report.bank_total.toLocaleString()}</span>
+          <div className="p-6 text-center text-muted-foreground">
+            {reports.length === 0 ? (
+              <p>No reconciliation data available yet. Run a reconciliation to get started.</p>
+            ) : (
+              <div className="space-y-3">
+                {reports.map((report, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-4 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all duration-200"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        {report.status === "reconciled" ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-5 w-5 text-amber-600" />
+                        )}
+                        <div>
+                          <p className="font-semibold text-foreground">{report.period}</p>
+                          <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+                            <span>System: ₦{report.system_total.toLocaleString()}</span>
+                            <span>Bank: ₦{report.bank_total.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className={`font-mono font-bold ${report.variance === 0 ? "text-green-600" : "text-red-600"}`}>
+                          {report.variance > 0 ? "+" : ""}{report.variance === 0 ? "✓" : report.variance}
+                        </p>
+                        <span className={`text-xs px-2 py-1 rounded-full font-bold border ${
+                          report.status === "reconciled"
+                            ? "bg-green-100/30 text-green-700 border-green-200/50"
+                            : "bg-amber-100/30 text-amber-700 border-amber-200/50"
+                        }`}>
+                          {report.status.toUpperCase()}
+                        </span>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className={`font-mono font-bold ${report.variance === 0 ? "text-green-600" : "text-red-600"}`}>
-                      {report.variance > 0 ? "+" : ""}{report.variance === 0 ? "✓" : report.variance}
-                    </p>
-                    <span className={`text-xs px-2 py-1 rounded-full font-bold border ${
-                      report.status === "reconciled"
-                        ? "bg-green-100/30 text-green-700 border-green-200/50"
-                        : "bg-amber-100/30 text-amber-700 border-amber-200/50"
-                    }`}>
-                      {report.status.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

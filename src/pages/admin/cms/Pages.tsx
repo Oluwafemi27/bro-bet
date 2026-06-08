@@ -24,13 +24,7 @@ const CMSPages: React.FC = () => {
 
   const loadPages = async () => {
     try {
-      const mockPages: CmsPage[] = [
-        { id: "1", title: "Terms & Conditions", slug: "terms", status: "published", updated_at: new Date().toISOString() },
-        { id: "2", title: "Privacy Policy", slug: "privacy", status: "published", updated_at: new Date().toISOString() },
-        { id: "3", title: "Responsible Gaming", slug: "responsible-gaming", status: "published", updated_at: new Date().toISOString() },
-        { id: "4", title: "FAQ", slug: "faq", status: "draft", updated_at: new Date().toISOString() },
-      ];
-      setPages(mockPages);
+      setPages([]);
     } catch (err: any) {
       toast({ title: "Error loading pages", variant: "destructive" });
     } finally {
@@ -62,30 +56,36 @@ const CMSPages: React.FC = () => {
           <CardTitle className="text-lg font-bold">CMS Pages</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="space-y-2 p-6">
-            {pages.map((page) => (
-              <div key={page.id} className="flex items-center justify-between p-3 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all">
-                <div>
-                  <p className="font-semibold text-foreground">{page.title}</p>
-                  <p className="text-xs text-muted-foreground">/{page.slug}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-bold border ${
-                    page.status === "published"
-                      ? "bg-green-100/30 text-green-700 border-green-200/50"
-                      : "bg-amber-100/30 text-amber-700 border-amber-200/50"
-                  }`}>
-                    {page.status.toUpperCase()}
-                  </span>
-                  <Button size="sm" variant="outline" className="h-8 gap-1.5">
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant="destructive" className="h-8 gap-1.5">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+          <div className="p-6 text-center text-muted-foreground">
+            {pages.length === 0 ? (
+              <p>No pages created yet. Add one to get started.</p>
+            ) : (
+              <div className="space-y-2">
+                {pages.map((page) => (
+                  <div key={page.id} className="flex items-center justify-between p-3 border border-border/30 rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-all">
+                    <div>
+                      <p className="font-semibold text-foreground">{page.title}</p>
+                      <p className="text-xs text-muted-foreground">/{page.slug}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs px-2 py-1 rounded-full font-bold border ${
+                        page.status === "published"
+                          ? "bg-green-100/30 text-green-700 border-green-200/50"
+                          : "bg-amber-100/30 text-amber-700 border-amber-200/50"
+                      }`}>
+                        {page.status.toUpperCase()}
+                      </span>
+                      <Button size="sm" variant="outline" className="h-8 gap-1.5">
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-8 gap-1.5">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>

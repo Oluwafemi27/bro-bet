@@ -25,12 +25,7 @@ const BonusRules: React.FC = () => {
 
   const loadRules = async () => {
     try {
-      const mockRules: BonusRule[] = [
-        { id: "1", name: "Welcome Bonus 50%", rollover_multiplier: 5, min_odds: 1.5, max_conversion: 50000, status: "active" },
-        { id: "2", name: "Reload Bonus 25%", rollover_multiplier: 3, min_odds: 1.2, max_conversion: 25000, status: "active" },
-        { id: "3", name: "Cashback 10%", rollover_multiplier: 1, min_odds: 1.0, max_conversion: 100000, status: "active" },
-      ];
-      setRules(mockRules);
+      setRules([]);
     } catch (err: any) {
       toast({ title: "Error loading rules", variant: "destructive" });
     } finally {
@@ -75,30 +70,38 @@ const BonusRules: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {rules.map((rule, idx) => (
-                  <tr
-                    key={rule.id}
-                    className={`border-b border-border/20 transition-colors ${idx % 2 === 0 ? "bg-background/50" : "bg-background"} hover:bg-primary/5`}
-                  >
-                    <td className="px-6 py-4 font-medium text-foreground">{rule.name}</td>
-                    <td className="px-6 py-4 text-muted-foreground font-mono">{rule.rollover_multiplier}x</td>
-                    <td className="px-6 py-4 text-muted-foreground font-mono">{rule.min_odds.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-muted-foreground font-mono">₦{rule.max_conversion.toLocaleString()}</td>
-                    <td className="px-6 py-4">
-                      <span className="text-xs px-3 py-1 rounded-full font-bold bg-green-100/30 text-green-700 border border-green-200/50">
-                        {rule.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 flex gap-2">
-                      <Button size="sm" variant="outline" className="h-8 gap-1.5">
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="sm" variant="destructive" className="h-8 gap-1.5">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                {rules.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                      No bonus rules configured yet. Create one to get started.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  rules.map((rule, idx) => (
+                    <tr
+                      key={rule.id}
+                      className={`border-b border-border/20 transition-colors ${idx % 2 === 0 ? "bg-background/50" : "bg-background"} hover:bg-primary/5`}
+                    >
+                      <td className="px-6 py-4 font-medium text-foreground">{rule.name}</td>
+                      <td className="px-6 py-4 text-muted-foreground font-mono">{rule.rollover_multiplier}x</td>
+                      <td className="px-6 py-4 text-muted-foreground font-mono">{rule.min_odds.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-muted-foreground font-mono">₦{rule.max_conversion.toLocaleString()}</td>
+                      <td className="px-6 py-4">
+                        <span className="text-xs px-3 py-1 rounded-full font-bold bg-green-100/30 text-green-700 border border-green-200/50">
+                          {rule.status.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 flex gap-2">
+                        <Button size="sm" variant="outline" className="h-8 gap-1.5">
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="destructive" className="h-8 gap-1.5">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -5,26 +5,7 @@ import { AlertTriangle, CheckCircle, Search, ShieldAlert, ArrowRight } from "luc
 import { AdminPageShell } from "@/components/admin/AdminPageShell";
 
 const RiskAlerts = () => {
-  const [alerts] = useState([
-    {
-      id: 1,
-      type: "high_stake",
-      message: "User placed ₦5M bet - verify legitimacy",
-      severity: "high",
-      user: "User #123 (John Doe)",
-      time: new Date(Date.now() - 15 * 60000),
-      status: "pending"
-    },
-    {
-      id: 2,
-      type: "multi_account",
-      message: "Detected 3 accounts from same IP",
-      severity: "medium",
-      user: "IP: 192.168.1.1",
-      time: new Date(Date.now() - 30 * 60000),
-      status: "pending"
-    }
-  ]);
+  const [alerts] = useState([]);
 
   const getSeverityStyles = (severity: string) => {
     switch (severity) {
