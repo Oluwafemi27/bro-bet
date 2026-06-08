@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import Layout from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,16 +20,19 @@ interface Notification {
 
 const Notifications = () => {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && !user) {
+      navigate("/login");
+    } else if (!loading && user) {
       loadNotifications();
     }
-  }, [user, loading]);
+  }, [user, loading, navigate]);
 
   const loadNotifications = async () => {
     try {
@@ -115,21 +120,28 @@ const Notifications = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
+  if (!loading && !user) {
+    return null;
+  }
+
   if (isLoading) {
     return (
-      <div className="container py-8 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
+      <Layout>
+        <div className="container py-8 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="container py-8 space-y-6">
+    <Layout>
+      <div className="container py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold">Notifications</h1>
@@ -223,6 +235,7 @@ const Notifications = () => {
         )}
       </div>
     </div>
+    </Layout>
   );
 };
 

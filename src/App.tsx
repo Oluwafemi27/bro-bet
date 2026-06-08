@@ -22,6 +22,9 @@ import Account from "./pages/Account";
 import Promotions from "./pages/Promotions";
 import MyBets from "./pages/MyBets";
 import BetHistory from "./pages/BetHistory";
+import Notifications from "./pages/Notifications";
+import Settings from "./pages/Settings";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -71,7 +74,7 @@ import BettingLimits from "./pages/admin/risk/BettingLimits";
 // CMS
 import Banners from "./pages/admin/cms/Banners";
 import CMSPages from "./pages/admin/cms/Pages";
-import Notifications from "./pages/admin/cms/Notifications";
+import AdminNotifications from "./pages/admin/cms/Notifications";
 
 // Reports
 import GGRReport from "./pages/admin/reports/GGRReport";
@@ -136,6 +139,9 @@ const App = () => (
                 <Route path="/promotions" element={<Promotions />} />
                 <Route path="/my-bets" element={<MyBets />} />
                 <Route path="/bet-history" element={<BetHistory />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/support" element={<Support />} />
 
                 {/* Unified Admin Panel Routes */}
                 <Route path="/admin" element={<AdminLayout />}>
@@ -189,7 +195,7 @@ const App = () => (
                   {/* Content Management */}
                   <Route path="cms/banners" element={<Banners />} />
                   <Route path="cms/pages" element={<CMSPages />} />
-                  <Route path="cms/notifications" element={<Notifications />} />
+                  <Route path="cms/notifications" element={<AdminNotifications />} />
 
                   {/* Reports & Analytics */}
                   <Route path="reports/ggr" element={<GGRReport />} />

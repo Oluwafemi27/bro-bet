@@ -1,16 +1,29 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Wallet, Search, Clock, Shield } from "lucide-react";
+import { Wallet, Search, Clock, Shield, Bell, Settings as SettingsIcon, HelpCircle, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { usePlacedBets } from "@/contexts/PlacedBetsContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, signOut } = useAuth();
   const { currentBets } = usePlacedBets();
   const [showSearch, setShowSearch] = useState(false);
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    signOut();
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -56,10 +69,50 @@ const Header = () => {
                   </span>
                 </Link>
               )}
-              <Link to="/account" className="flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5">
+              <Link to="/account" className="flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-1.5 hover:bg-secondary/80 transition-colors">
                 <Wallet className="h-4 w-4 text-primary" />
                 <span className="text-sm font-semibold text-foreground">₦{profile.balance.toLocaleString()}</span>
               </Link>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hover:bg-secondary">
+                    <SettingsIcon className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => navigate("/notifications")} className="flex items-center gap-2 cursor-pointer">
+                      <Bell className="h-4 w-4" />
+                      <span>Notifications</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/settings")} className="flex items-center gap-2 cursor-pointer">
+                      <SettingsIcon className="h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/support")} className="flex items-center gap-2 cursor-pointer">
+                      <HelpCircle className="h-4 w-4" />
+                      <span>Support & Help</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem onClick={() => navigate("/admin")} className="flex items-center gap-2 cursor-pointer bg-amber-600/10 text-amber-600">
+                          <Shield className="h-4 w-4" />
+                          <span>Admin Panel</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign Out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           ) : (
             <div className="flex items-center gap-2">
