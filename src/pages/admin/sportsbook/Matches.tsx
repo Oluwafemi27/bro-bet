@@ -127,11 +127,29 @@ const Matches: React.FC = () => {
           <p className="text-muted-foreground mt-1">{filteredMatches.length} matches</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              const csv = "League,Match,Scheduled,Status,Odds\n" +
+                filteredMatches.map(m => `${m.league},"${m.home_team} vs ${m.away_team}",${new Date(m.scheduled_time).toLocaleString()},${m.status},${m.odds_locked ? 'Locked' : 'Open'}`).join("\n");
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "matches.csv";
+              a.click();
+              window.URL.revokeObjectURL(url);
+              toast({ title: "Matches exported successfully" });
+            }}
+          >
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2 bg-primary hover:bg-primary/90">
+          <Button
+            className="gap-2 bg-primary hover:bg-primary/90"
+            onClick={() => toast({ title: "New Match dialog not yet implemented", description: "This feature is coming soon." })}
+          >
             <Plus className="h-4 w-4" />
             New Match
           </Button>
@@ -224,7 +242,12 @@ const Matches: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 px-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs gap-1.5 px-2"
+                        onClick={() => toast({ title: "Edit Match dialog not yet implemented", description: "This feature is coming soon." })}
+                      >
                         <Edit className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Edit</span>
                       </Button>

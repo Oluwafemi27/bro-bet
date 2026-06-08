@@ -45,7 +45,10 @@ const CMSPages: React.FC = () => {
           </div>
           Pages
         </h1>
-        <Button className="gap-2">
+        <Button
+          className="gap-2"
+          onClick={() => toast({ title: "New Page dialog not yet implemented", description: "This feature is coming soon." })}
+        >
           <Plus className="h-4 w-4" />
           New Page
         </Button>
@@ -75,10 +78,20 @@ const CMSPages: React.FC = () => {
                       }`}>
                         {page.status.toUpperCase()}
                       </span>
-                      <Button size="sm" variant="outline" className="h-8 gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        onClick={() => toast({ title: "Edit Page dialog not yet implemented", description: "This feature is coming soon." })}
+                      >
                         <Edit className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="sm" variant="destructive" className="h-8 gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-8 gap-1.5"
+                        onClick={() => toast({ title: "Delete Page not yet implemented", description: "This feature is coming soon." })}
+                      >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

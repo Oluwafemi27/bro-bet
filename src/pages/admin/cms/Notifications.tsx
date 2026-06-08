@@ -46,7 +46,10 @@ const Notifications: React.FC = () => {
           </div>
           Notifications
         </h1>
-        <Button className="gap-2">
+        <Button
+          className="gap-2"
+          onClick={() => toast({ title: "Send Notification dialog not yet implemented", description: "This feature is coming soon." })}
+        >
           <Plus className="h-4 w-4" />
           Send Notification
         </Button>
@@ -77,11 +80,21 @@ const Notifications: React.FC = () => {
                       }`}>
                         {notif.status.toUpperCase()}
                       </span>
-                      <Button size="sm" variant="outline" className="h-8 gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5"
+                        onClick={() => toast({ title: "Edit Notification dialog not yet implemented", description: "This feature is coming soon." })}
+                      >
                         <Edit className="h-3.5 w-3.5" />
                       </Button>
                       {notif.status === "draft" && (
-                        <Button size="sm" variant="default" className="h-8 gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-8 gap-1.5"
+                          onClick={() => toast({ title: "Notification sent successfully" })}
+                        >
                           <Send className="h-3.5 w-3.5" />
                           Send
                         </Button>

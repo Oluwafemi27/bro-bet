@@ -78,7 +78,10 @@ const BettingLimits: React.FC = () => {
           </div>
           Betting Limits
         </h1>
-        <Button className="gap-2">
+        <Button
+          className="gap-2"
+          onClick={() => toast({ title: "New Limit dialog not yet implemented", description: "This feature is coming soon." })}
+        >
           <Plus className="h-4 w-4" />
           New Limit
         </Button>
@@ -133,7 +136,12 @@ const BettingLimits: React.FC = () => {
                         {new Date(limit.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs gap-1.5"
+                          onClick={() => toast({ title: "Edit Limit dialog not yet implemented", description: "This feature is coming soon." })}
+                        >
                           <Edit className="h-3.5 w-3.5" />
                           Edit
                         </Button>

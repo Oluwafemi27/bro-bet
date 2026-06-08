@@ -90,7 +90,10 @@ const RiskRules: React.FC = () => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-bold">Risk Rules Engine</h1>
-        <Button className="gap-2">
+        <Button
+          className="gap-2"
+          onClick={() => toast({ title: "New Rule dialog not yet implemented", description: "This feature is coming soon." })}
+        >
           <Plus className="h-4 w-4" />
           New Rule
         </Button>
@@ -124,7 +127,12 @@ const RiskRules: React.FC = () => {
                       <ToggleLeft className="h-5 w-5 text-muted-foreground" />
                     )}
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-10 w-10">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-10 w-10"
+                    onClick={() => toast({ title: "Edit Rule dialog not yet implemented", description: "This feature is coming soon." })}
+                  >
                     <Edit className="h-4 w-4" />
                   </Button>
                   <Button 

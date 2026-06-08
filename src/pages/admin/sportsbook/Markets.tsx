@@ -89,11 +89,29 @@ const Markets: React.FC = () => {
           <p className="text-muted-foreground mt-1">Manage betting markets</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              const csv = "Market Name,Sport,Matches,Min/Max Stake,Status\n" +
+                filteredMarkets.map(m => `${m.name},${m.sport},${m.match_count},"₦${Number(m.min_stake).toLocaleString()} - ₦${Number(m.max_stake).toLocaleString()}",${m.enabled ? 'Enabled' : 'Disabled'}`).join("\n");
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "markets.csv";
+              a.click();
+              window.URL.revokeObjectURL(url);
+              toast({ title: "Markets exported successfully" });
+            }}
+          >
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2 bg-primary hover:bg-primary/90">
+          <Button
+            className="gap-2 bg-primary hover:bg-primary/90"
+            onClick={() => toast({ title: "New Market dialog not yet implemented", description: "This feature is coming soon." })}
+          >
             <Plus className="h-4 w-4" />
             New Market
           </Button>
@@ -173,7 +191,12 @@ const Markets: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs gap-1.5"
+                        onClick={() => toast({ title: "Edit Market dialog not yet implemented", description: "This feature is coming soon." })}
+                      >
                         <Edit className="h-3.5 w-3.5" />
                         Edit
                       </Button>

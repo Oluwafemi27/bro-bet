@@ -125,11 +125,29 @@ const Leagues: React.FC = () => {
           <p className="text-muted-foreground mt-1">{filteredLeagues.length} leagues</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              const csv = "League Name,Sport,Country,Status,Created\n" +
+                filteredLeagues.map(l => `${l.name},${l.sport},${l.country},${l.is_active ? 'Active' : 'Inactive'},${new Date(l.created_at).toLocaleDateString()}`).join("\n");
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "leagues.csv";
+              a.click();
+              window.URL.revokeObjectURL(url);
+              toast({ title: "Leagues exported successfully" });
+            }}
+          >
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2 bg-primary hover:bg-primary/90">
+          <Button
+            className="gap-2 bg-primary hover:bg-primary/90"
+            onClick={() => toast({ title: "New League dialog not yet implemented", description: "This feature is coming soon." })}
+          >
             <Plus className="h-4 w-4" />
             New League
           </Button>
@@ -194,13 +212,18 @@ const Leagues: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs gap-1.5"
+                          onClick={() => toast({ title: "Edit League dialog not yet implemented", description: "This feature is coming soon." })}
+                        >
                           <Edit className="h-3.5 w-3.5" />
                           Edit
                         </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive" 
+                        <Button
+                          size="sm"
+                          variant="destructive"
                           className="h-8 text-xs gap-1.5"
                           onClick={() => handleDelete(league.id)}
                         >

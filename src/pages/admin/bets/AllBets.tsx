@@ -1,7 +1,15 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const AllBets = () => {
+  const { toast } = useToast();
+
+  const handleViewDetails = () => {
+    toast({ title: "View Details not yet implemented", description: "This feature is coming soon." });
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="font-display text-2xl font-bold">All Bets</h2>

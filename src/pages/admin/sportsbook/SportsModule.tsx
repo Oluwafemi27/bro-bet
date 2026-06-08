@@ -38,7 +38,13 @@ const SportsModule = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl font-bold">Sportsbook Overview</h2>
-        <Button className="gap-2">
+        <Button
+          className="gap-2"
+          onClick={() => {
+            // Will show modal/dialog when implemented
+            console.log("Add event dialog coming soon");
+          }}
+        >
           <Plus className="h-4 w-4" /> Add Event
         </Button>
       </div>

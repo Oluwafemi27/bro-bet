@@ -1,13 +1,20 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const FreebetsPage = () => {
+  const { toast } = useToast();
+
+  const handleIssueFreeBet = () => {
+    toast({ title: "Issue Free Bet dialog not yet implemented", description: "This feature is coming soon." });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl font-bold">Free Bets</h2>
-        <Button>Issue Free Bet</Button>
+        <Button onClick={handleIssueFreeBet}>Issue Free Bet</Button>
       </div>
 
       <Card>

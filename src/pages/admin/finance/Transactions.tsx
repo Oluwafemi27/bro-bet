@@ -117,7 +117,22 @@ const Transactions: React.FC = () => {
           <h1 className="font-display text-3xl font-bold">All Transactions</h1>
           <p className="text-muted-foreground mt-1">{filteredTransactions.length} transactions</p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            const csv = "Reference,User ID,Type,Amount,Method,Status,Date\n" +
+              filteredTransactions.map(t => `${t.reference},${t.user_id},${t.type.toUpperCase()},₦${Number(t.amount).toLocaleString()},${t.method},${t.status.toUpperCase()},${new Date(t.created_at).toLocaleDateString()}`).join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "transactions.csv";
+            a.click();
+            window.URL.revokeObjectURL(url);
+            toast({ title: "Transactions exported successfully" });
+          }}
+        >
           <Download className="h-4 w-4" />
           Export
         </Button>
@@ -213,11 +228,24 @@ const Transactions: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-xs gap-1.5"
+                          onClick={() => toast({
+                            title: "Transaction Details",
+                            description: `Reference: ${txn.reference}\nAmount: ₦${Number(txn.amount).toLocaleString()}\nStatus: ${txn.status.toUpperCase()}`
+                          })}
+                        >
                           <Eye className="h-3.5 w-3.5" />
                           <span className="hidden sm:inline">View</span>
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground"
+                          onClick={() => toast({ title: "More options not yet implemented", description: "This feature is coming soon." })}
+                        >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </div>

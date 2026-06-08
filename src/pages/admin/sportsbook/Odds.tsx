@@ -132,11 +132,29 @@ const OddsControl: React.FC = () => {
           <p className="text-muted-foreground mt-1">Manage odds for all matches</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              const csv = "Match,Market,Home,Draw,Away,Margin,Updated\n" +
+                filteredOdds.map(o => `"${o.match}",${o.market},${o.home_odds.toFixed(2)},${o.draw_odds.toFixed(2)},${o.away_odds.toFixed(2)},${o.margin}%,${new Date(o.last_updated).toLocaleTimeString()}`).join("\n");
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "odds.csv";
+              a.click();
+              window.URL.revokeObjectURL(url);
+              toast({ title: "Odds exported successfully" });
+            }}
+          >
             <Download className="h-4 w-4" />
             Export
           </Button>
-          <Button className="gap-2 bg-primary hover:bg-primary/90">
+          <Button
+            className="gap-2 bg-primary hover:bg-primary/90"
+            onClick={() => toast({ title: "Bulk Update dialog not yet implemented", description: "This feature is coming soon." })}
+          >
             <Plus className="h-4 w-4" />
             Bulk Update
           </Button>
@@ -204,7 +222,12 @@ const OddsControl: React.FC = () => {
                       {new Date(odd.last_updated).toLocaleTimeString()}
                     </td>
                     <td className="px-6 py-4">
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs gap-1.5"
+                        onClick={() => toast({ title: "Adjust Odds dialog not yet implemented", description: "This feature is coming soon." })}
+                      >
                         <Edit className="h-3.5 w-3.5" />
                         Adjust
                       </Button>

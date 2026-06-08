@@ -77,7 +77,22 @@ const Wallets: React.FC = () => {
           </h1>
           <p className="text-muted-foreground mt-1">{filteredWallets.length} wallets</p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            const csv = "Username,User ID,Balance,Pending,Locked,Status\n" +
+              filteredWallets.map(w => `${w.username},${w.user_id},₦${Number(w.balance).toLocaleString()},₦${Number(w.pending).toLocaleString()},₦${Number(w.locked).toLocaleString()},${w.status.toUpperCase()}`).join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "wallets.csv";
+            a.click();
+            window.URL.revokeObjectURL(url);
+            toast({ title: "Wallets exported successfully" });
+          }}
+        >
           <Download className="h-4 w-4" />
           Export
         </Button>
@@ -146,7 +161,12 @@ const Wallets: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs gap-1.5"
+                        onClick={() => toast({ title: "Adjust Wallet dialog not yet implemented", description: "This feature is coming soon." })}
+                      >
                         <Edit className="h-3.5 w-3.5" />
                         Adjust
                       </Button>

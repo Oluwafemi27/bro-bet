@@ -2,8 +2,15 @@ import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Image } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const Banners: React.FC = () => {
+  const { toast } = useToast();
+
+  const handleNewBanner = () => {
+    toast({ title: "New Banner dialog not yet implemented", description: "This feature is coming soon." });
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -13,7 +20,7 @@ const Banners: React.FC = () => {
           </div>
           Banners & Sliders
         </h1>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={handleNewBanner}>
           <Plus className="h-4 w-4" />
           New Banner
         </Button>
