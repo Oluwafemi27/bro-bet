@@ -39,7 +39,8 @@ const PlayersPage: React.FC = () => {
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</td>
               </tr>
             ))}</tbody>
-          </table>}
+          </table></div>
+          )}
           {players.length === 0 && <div className="text-center py-12 text-muted-foreground"><p>No referred players found</p></div>}
         </CardContent></Card>
     </AdminPageShell>

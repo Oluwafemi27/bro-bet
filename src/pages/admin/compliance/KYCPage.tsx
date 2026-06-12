@@ -49,7 +49,8 @@ const KYCPage: React.FC = () => {
                 </div>}</td>
               </tr>
             ))}</tbody>
-          </table>}
+          </table></div>
+          )}
           {kycs.length === 0 && <div className="text-center py-12 text-muted-foreground"><Shield className="h-12 w-12 mx-auto opacity-20 mb-3" /><p>No KYC submissions</p></div>}
         </CardContent></Card>
     </AdminPageShell>

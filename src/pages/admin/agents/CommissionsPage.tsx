@@ -49,7 +49,8 @@ const CommissionsPage: React.FC = () => {
                 <td className="px-4 py-3">{c.status === "pending" && <Button size="sm" className="h-8 text-xs gap-1" onClick={() => handlePay(c.id)}><CheckCircle className="h-3.5 w-3.5" />Pay</Button>}</td>
               </tr>
             ))}</tbody>
-          </table>}
+          </table></div>
+          )}
           {commissions.length === 0 && <div className="text-center py-12 text-muted-foreground"><p>No commissions found</p></div>}
         </CardContent></Card>
     </AdminPageShell>

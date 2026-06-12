@@ -36,7 +36,8 @@ const VoidedBets: React.FC = () => {
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(b.created_at).toLocaleString()}</td>
               </tr>
             ))}</tbody>
-          </table>}
+          </table></div>
+          )}
           {bets.length === 0 && <div className="text-center py-12 text-muted-foreground"><p>No voided bets</p></div>}
         </CardContent></Card>
     </AdminPageShell>

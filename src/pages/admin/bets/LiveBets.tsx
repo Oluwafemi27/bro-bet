@@ -36,7 +36,8 @@ const LiveBets: React.FC = () => {
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(b.created_at).toLocaleString()}</td>
               </tr>
             ))}</tbody>
-          </table>}
+          </table></div>
+          )}
           {bets.length === 0 && <div className="text-center py-12 text-muted-foreground"><Activity className="h-12 w-12 mx-auto opacity-20 mb-3" /><p>No live bets at the moment</p></div>}
         </CardContent></Card>
     </AdminPageShell>

@@ -38,7 +38,8 @@ const LogsPage: React.FC = () => {
                 <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(l.created_at).toLocaleString()}</td>
               </tr>
             ))}</tbody>
-          </table>}
+          </table></div>
+          )}
           {logs.length === 0 && <div className="text-center py-12 text-muted-foreground"><FileText className="h-12 w-12 mx-auto opacity-20 mb-3" /><p>No compliance logs</p></div>}
         </CardContent></Card>
     </AdminPageShell>

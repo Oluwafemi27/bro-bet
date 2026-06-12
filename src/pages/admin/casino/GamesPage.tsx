@@ -50,7 +50,8 @@ const GamesPage: React.FC = () => {
                   <td className="px-4 py-3"><Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => toggleStatus(g.id, g.status)}>{g.status === "active" ? "Disable" : "Enable"}</Button></td>
                 </tr>
               ))}</tbody>
-            </table>}
+            </table></div>
+          )}
             {filtered.length === 0 && <div className="text-center py-12 text-muted-foreground"><Gamepad2 className="h-12 w-12 mx-auto opacity-20 mb-3" /><p>No games found</p></div>}
           </CardContent></Card>
       </div>
